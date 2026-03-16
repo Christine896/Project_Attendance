@@ -23,22 +23,28 @@ const Login = () => {
       };
 
       const response = await loginStudent(credentials);
-      const userData = response.data.student || response.data.lecturer || response.data.user;
-      
-      if (userData) {
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        setTimeout(() => {
-          if (userData.role === 'lecturer') {
-            navigate('/lecturer-dashboard');
-          } else {
-            navigate('/dashboard');
-          }
-        }, 100);
-      } else {
-        // 2. USE SETERROR INSTEAD OF ALERT
-        setError("Login failed: Account data not found.");
-      }
+
+// SPRINT 1 UPDATE: Check for student data AND the security token
+const userData = response.data.student;
+const token = response.data.token;
+
+if (userData && token) {
+  // 1. Save the Gate Pass (Token)
+  localStorage.setItem('token', token);
+  
+  // 2. Save the User Profile
+  localStorage.setItem('user', JSON.stringify(userData));
+  
+  setTimeout(() => {
+    if (userData.role === 'lecturer') {
+      navigate('/lecturer-dashboard');
+    } else {
+      navigate('/dashboard');
+    }
+  }, 100);
+} else {
+  setError("Login failed: Security token or account data missing.");
+}
       
     } catch (error) {
       // 3. USE SETERROR FOR BACKEND FAILURES

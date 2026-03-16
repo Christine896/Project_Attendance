@@ -1,7 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs'); // The scrambler we just installed
-const Student = require('../models/Student'); // The blueprint we made in Step 1
+const bcrypt = require('bcryptjs'); 
+const Student = require('../models/Student'); 
+const jwt = require('jsonwebtoken');
+
+// Haversine Formula: Calculates distance in meters between two GPS points
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Earth's radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; 
+};
 
 // --- THE REGISTER DOORWAY ---
 // This listens for a "POST" request (sending data) to /register
@@ -42,34 +55,39 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// --- THE LOGIN DOORWAY ---
-// --- THE LOGIN DOORWAY ---
 router.post('/login', async (req, res) => {
     console.log("Login Attempt:", req.body); 
     try {
         const { regNo, password } = req.body;
 
-        // 1. Find the student by Registration Number
         const student = await Student.findOne({ regNo });
         if (!student) {
             return res.status(400).json({ message: "Invalid Registration Number or Password" });
         }
 
-        // 2. Compare the entered password with the hashed password in the DB
         const isMatch = await bcrypt.compare(password, student.password);
         if (!isMatch) {
             return res.status(400).json({ message: "Invalid Registration Number or Password" });
         }
 
-        // 3. Send back success and the info (Including _id and ROLE!)
+        // --- NEW: SPRINT 1 JWT GENERATION ---
+        // We sign a token with the user's ID and Role. 
+        // Use a strong secret key (you can change 'JKUAT_SECRET_2026' later).
+        const token = jwt.sign(
+            { id: student._id, role: student.role || 'student' },
+            'JKUAT_SECRET_2026',
+            { expiresIn: '24h' }
+        );
+
         res.json({
             message: "Welcome back!",
+            token: token, // <--- THE GATE PASS
             student: {
-                _id: student._id,       // Crucial for tracking who is scanning
+                _id: student._id,
                 fullName: student.fullName,
                 regNo: student.regNo,
                 email: student.email,
-                role: student.role || 'student' // Sends 'lecturer' if you updated it in Compass
+                role: student.role || 'student'
             }
         });
 
@@ -84,9 +102,35 @@ const Attendance = require('../models/Attendance');
 // --- THE SCAN DOORWAY ---
 router.post('/scan', async (req, res) => {
     try {
-        const { studentId, unitName, unitCode } = req.body;
+        // We now expect GPS coordinates from the QR code and the phone
+        const { unitName, unitCode, lecturerLat, lecturerLng, studentLat, studentLng, studentId } = req.body;
 
-        // 1. Check if the student already scanned for THIS unit TODAY
+        // --- STEP 3: THE DATA GUARD ---
+        // This ensures the math doesn't run on "undefined" or "null" values
+        if (!lecturerLat || !lecturerLng || !studentLat || !studentLng) {
+            console.log("Missing coordinates in request:", req.body);
+            return res.status(400).json({ 
+                message: "GPS data missing. Ensure both phone and lecturer have location enabled." 
+            });
+        }
+
+        // 1. Calculate the physical distance
+        // Since we checked them above, we know these are now safe to calculate
+        const distance = calculateDistance(
+            Number(lecturerLat), 
+            Number(lecturerLng), 
+            Number(studentLat), 
+            Number(studentLng)
+        );
+
+        // 2. The Geofence Check (50 Meters)
+        if (distance > 50) {
+            return res.status(403).json({ 
+                message: `Too far! You are ${Math.round(distance)}m away.` 
+            });
+        }
+
+        // 3. Double-Scan Prevention (Keep your existing logic)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -97,22 +141,27 @@ router.post('/scan', async (req, res) => {
         });
 
         if (alreadyScanned) {
-            return res.status(400).json({ message: "You have already signed for this unit today!" });
+            return res.status(400).json({ message: "Attendance already recorded for today." });
         }
 
-        // 2. Create the record
+        // 4. Create record with the Distance field
         const newRecord = new Attendance({
             student: studentId,
             unitName,
-            unitCode
+            unitCode,
+            distance: Math.round(distance), // Save the proof of location
+            status: 'Present'
         });
 
         await newRecord.save();
-        res.status(201).json({ message: `Successfully signed for ${unitName}!` });
+        res.status(201).json({ 
+            message: `Successfully signed for ${unitName}!`, 
+            distance: Math.round(distance) 
+        });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: "Server error during scanning" });
+        res.status(500).json({ message: "Server error during verification." });
     }
 });
 

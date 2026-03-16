@@ -10,33 +10,48 @@ const Dashboard = () => {
   const [userName, setUserName] = useState('Student');
   const [percentage, setPercentage] = useState(0);
   const [hasUnread, setHasUnread] = useState(true);
+  const [activeSession, setActiveSession] = useState(null);
+  const [upcomingUnits, setUpcomingUnits] = useState([]);
   
-  // LOGIC: Check if a class is actually happening right now
-  const [activeSession, setActiveSession] = useState({
-    unitName: "Network Security",
-    room: "Lecture Hall 4B",
-    isActive: true // Set to false to see the "No Active Session" state
-  });
 
   useEffect(() => {
-    const savedUser = JSON.parse(localStorage.getItem('user'));
-    if (savedUser && savedUser.fullName) {
-      setUserName(savedUser.fullName.split(' ')[0]);
-    }
+  const savedUser = JSON.parse(localStorage.getItem('user'));
+  if (savedUser && savedUser.fullName) {
+    setUserName(savedUser.fullName.split(' ')[0]);
+  }
 
-    const fetchStats = async () => {
-      try {
-        if (savedUser?._id) {
-          const response = await getStudentHistory(savedUser._id);
-          const calcPercent = Math.min(Math.round((response.data.length / 50) * 100), 100);
-          setPercentage(calcPercent);
-        }
-      } catch (err) {
-        console.error("Failed to fetch stats", err);
-      }
-    };
-    fetchStats();
-  }, []);
+  const fetchUnits = async () => {
+    try {
+      // 1. You'll need an API endpoint like getUnitsByCourse
+      // For now, we fetch ALL and filter in frontend to test
+      const response = await getAllUnits(); 
+      const allUnits = response.data;
+
+      const today = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
+      const currentTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+      // Find unit happening NOW for THIS student's course
+      const active = allUnits.find(u => 
+        u.course === savedUser.course && 
+        u.day === today &&
+        currentTime >= u.startTime && currentTime <= u.endTime
+      );
+
+      // Find units happening LATER today
+      const upcoming = allUnits.filter(u => 
+        u.course === savedUser.course && 
+        u.day === today &&
+        u.startTime > currentTime
+      );
+
+      setActiveSession(active);
+      setUpcomingUnits(upcoming);
+    } catch (err) {
+      console.error("Discovery failed", err);
+    }
+  };
+  fetchUnits();
+}, []);
 
   const mainCardStyles = "bg-white/65 backdrop-blur-xl rounded-[28px] border border-white/40 shadow-lg p-5";
   const upcomingCardStyles = "bg-white/30 border border-white/40 p-3 rounded-[20px] flex items-center gap-3";
@@ -76,7 +91,7 @@ const Dashboard = () => {
 
       {/* 3. ACTIVE SESSION CARD (Conditional Logic) */}
       <div className={`${mainCardStyles} mb-4 relative overflow-hidden`}>
-        {activeSession.isActive ? (
+        {activeSession?.isActive ? (
           <>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl font-black text-slate-900 leading-tight">{activeSession.unitName}</h2>
