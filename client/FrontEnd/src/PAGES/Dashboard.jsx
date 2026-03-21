@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getStudentHistory } from '../services/api';
+import { getStudentStats, getAllUnits } from '../services/api';
 import { 
   Bell, Home, History, User, Scan, MapPin, Database, Code, CircleUser, CalendarX 
 } from 'lucide-react';
@@ -12,7 +12,7 @@ const Dashboard = () => {
   const [hasUnread, setHasUnread] = useState(true);
   const [activeSession, setActiveSession] = useState(null);
   const [upcomingUnits, setUpcomingUnits] = useState([]);
-  
+  const [unitStats, setUnitStats] = useState([]);
 
   useEffect(() => {
   const savedUser = JSON.parse(localStorage.getItem('user'));
@@ -20,37 +20,49 @@ const Dashboard = () => {
     setUserName(savedUser.fullName.split(' ')[0]);
   }
 
-  const fetchUnits = async () => {
+  const calculateAttendance = async () => {
     try {
-      // 1. You'll need an API endpoint like getUnitsByCourse
-      // For now, we fetch ALL and filter in frontend to test
-      const response = await getAllUnits(); 
-      const allUnits = response.data;
+      // 1. Fetch exact stats from our new backend route
+      const statsRes = await getStudentStats(savedUser._id);
+      const stats = statsRes.data;
+      setUnitStats(stats); // Save for the individual progress bars
+
+      // 2. Calculate the Big Hero Circle Total
+      let totalPossible = 0;
+      let totalAttended = 0;
+      
+      stats.forEach(unit => {
+        totalPossible += (unit.totalSessions || 0);
+        totalAttended += (unit.attended || 0);
+      });
+
+      const finalPercent = totalPossible > 0 ? Math.round((totalAttended / totalPossible) * 100) : 0;
+      setPercentage(finalPercent);
+
+      // 3. Active/Upcoming Discovery (Your existing time-based logic)
+      const unitsRes = await getAllUnits();
+      const allUnits = unitsRes.data;
+      const myCourseUnits = allUnits.filter(u => u.course === savedUser.course);
 
       const today = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
       const currentTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-      // Find unit happening NOW for THIS student's course
-      const active = allUnits.find(u => 
-        u.course === savedUser.course && 
-        u.day === today &&
-        currentTime >= u.startTime && currentTime <= u.endTime
+      const active = myCourseUnits.find(u => 
+        u.day === today && currentTime >= u.startTime && currentTime <= u.endTime
       );
-
-      // Find units happening LATER today
-      const upcoming = allUnits.filter(u => 
-        u.course === savedUser.course && 
-        u.day === today &&
-        u.startTime > currentTime
+      const upcoming = myCourseUnits.filter(u => 
+        u.day === today && u.startTime > currentTime
       );
 
       setActiveSession(active);
       setUpcomingUnits(upcoming);
+
     } catch (err) {
-      console.error("Discovery failed", err);
+      console.error("Attendance calculation failed", err);
     }
   };
-  fetchUnits();
+
+  if (savedUser) calculateAttendance();
 }, []);
 
   const mainCardStyles = "bg-white/65 backdrop-blur-xl rounded-[28px] border border-white/40 shadow-lg p-5";
@@ -87,6 +99,36 @@ const Dashboard = () => {
             />
           </svg>
         </div>
+      </div>
+
+      {/* 2.5 UNIT BREAKDOWN (STEP 12) */}
+      <div className="mb-6 space-y-3">
+        {unitStats.map((stat, idx) => {
+          const unitPercent = stat.totalSessions > 0 
+            ? Math.round((stat.attended / stat.totalSessions) * 100) 
+            : 0;
+            
+          return (
+            <div key={idx} className="bg-white/40 backdrop-blur-md border border-white/50 p-3.5 rounded-2xl flex flex-col gap-2 shadow-sm">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-slate-800 text-sm">{stat.unitName}</span>
+                <span className="text-xs font-black text-indigo-700">{unitPercent}%</span>
+              </div>
+              
+              {/* Progress Bar Track */}
+              <div className="w-full h-2 bg-indigo-900/10 rounded-full overflow-hidden">
+                {/* Progress Bar Fill */}
+                <div 
+                  className={`h-full rounded-full transition-all duration-1000 ${unitPercent < 50 ? 'bg-rose-500' : unitPercent < 75 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  style={{ width: `${unitPercent}%` }}
+                />
+              </div>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                Attended: {stat.attended} / {stat.totalSessions} Classes
+              </p>
+            </div>
+          );
+        })}
       </div>
 
       {/* 3. ACTIVE SESSION CARD (Conditional Logic) */}

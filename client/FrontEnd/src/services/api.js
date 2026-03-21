@@ -30,5 +30,10 @@ export const endSession = (sessionId) => API.post('/api/sessions/end', { session
 // --- STUDENT & ATTENDANCE (PHASE 2 & 3 Placeholders) ---
 export const logAttendance = (attendanceData) => API.post('/api/auth/scan', attendanceData);
 export const getStudentHistory = (studentId) => API.get(`/api/attendance/student/${studentId}`);
+// --- UNITS ---
+export const getAllUnits = () => API.get('/api/units/all'); // Add this line
+
+export const incrementUnitSession = (unitId) => API.post(`/api/auth/lecturer/unit/${unitId}/increment`);
+export const getStudentStats = (studentId) => API.get(`/api/auth/stats/${studentId}`);
 
 export default API;

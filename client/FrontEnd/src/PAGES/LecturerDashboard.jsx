@@ -5,7 +5,7 @@ import {
   Users, LogOut, RotateCcw, Clock, ShieldCheck, 
   Loader2, BookOpen, Hash, QrCode 
 } from 'lucide-react';
-import { getLecturerUnits } from '../services/api';
+import { getLecturerUnits, incrementUnitSession } from '../services/api'; // Added incrementUnitSession
 
 const LecturerDashboard = () => {
   const navigate = useNavigate();
@@ -20,6 +20,7 @@ const LecturerDashboard = () => {
   const [nonce, setNonce] = useState(Date.now());
   const [location, setLocation] = useState({ lat: null, lng: null });
   const [isCapturing, setIsCapturing] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
 
   // Fetch units on load
   useEffect(() => {
@@ -66,7 +67,8 @@ const LecturerDashboard = () => {
         if (!targetCode) return;
 
         // Fetch today's attendance for this specific unit
-        const response = await fetch(`http://localhost:5000/api/auth/lecturer/attendance/${targetCode}`);
+        // Fetch only for this specific session ID
+        const response = await fetch(`http://localhost:5000/api/auth/lecturer/attendance/${targetCode}/${sessionId}`);
         const data = await response.json();
         
         // If the backend returns an array of records, update the count
@@ -99,12 +101,22 @@ const LecturerDashboard = () => {
   setIsCapturing(true);
   
   navigator.geolocation.getCurrentPosition(
-    (position) => {
+    async (position) => { // <--- ADDED 'async' HERE
+      try {
+        // STEP 12: Add +1 to the database logbook
+        await incrementUnitSession(selectedUnit._id || selectedUnit.id);
+      } catch (err) {
+        console.error("Failed to increment session count", err);
+      }
+
       const coords = { 
         lat: position.coords.latitude, 
         lng: position.coords.longitude 
       };
       
+      const newSessionId = Date.now().toString(); 
+      setSessionId(newSessionId);
+
       setLocation(coords);
       setIsCapturing(false);
       
@@ -137,6 +149,7 @@ const LecturerDashboard = () => {
     setScannedCount(0);
     setTimeLeft(10 * 60);
     setSelectedUnit(null);
+    setSessionId(null);
   };
 
   // Helper function for the timer
@@ -251,6 +264,7 @@ const LecturerDashboard = () => {
                       unitId: selectedUnit?._id, 
                       code: selectedUnit?.unitCode || selectedUnit?.code, 
                       name: selectedUnit?.unitName || selectedUnit?.name,
+                      sessionId: sessionId,
                       nonce: nonce, 
                       lat: location.lat, 
                       lng: location.lng 

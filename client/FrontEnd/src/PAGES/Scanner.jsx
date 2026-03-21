@@ -44,8 +44,25 @@ const Scanner = () => {
       navigator.geolocation.getCurrentPosition(async (position) => {
         try {
           const rawText = result.text.trim();
-          const data = JSON.parse(rawText);
+          let data;
           
+          // --- FIX TEST 4: SURGICAL JSON CATCH (No more Unexpected Token) ---
+          try {
+            data = JSON.parse(rawText);
+          } catch (jsonErr) {
+            throw new Error("Please scan a valid Attendance QR code.");
+          }
+          
+          // --- FIX TEST 5: 5-SECOND SCREENSHOT KILLER ---
+          const currentTime = Date.now();
+          const qrGeneratedTime = Number(data.nonce);
+          const ageInSeconds = (currentTime - qrGeneratedTime) / 1000;
+
+          // If the QR is older than 5 seconds, it's a "dead" screenshot
+          if (!data.nonce || ageInSeconds > 25 || ageInSeconds < -5) {
+            throw new Error("QR Code Expired. Please scan the live code on the screen.");
+          }
+
           const scannedUnitCode = data.code || data.unitCode || "Unknown Code";
           const scannedUnitName = data.name || data.unitName || "Unknown Unit";
 
@@ -60,13 +77,9 @@ const Scanner = () => {
           
           const distance = getDistance(lLat, lLng, sLat, sLng);
           
-          if (distance > 50) {
-            setScanStatus("error");
-            setErrorMessage(`Too Far! You are ${Math.round(distance)}m away.`);
-            setScannedData({ unitName: scannedUnitName, unitCode: scannedUnitCode });
-            setStopStream(true);
-            setIsProcessing(false);
-            return; 
+          // SYNC WITH BACKEND: Allow up to 250m
+          if (distance > 250) {
+            throw new Error(`Too Far! You are ${Math.round(distance)}m away.`);
           }
 
           await logAttendance({
@@ -74,7 +87,8 @@ const Scanner = () => {
             unitCode: scannedUnitCode,  
             unitName: scannedUnitName,
             unitId: data.unitId,
-            distance: distance,
+            sessionId: data.sessionId, 
+            distance: Math.round(distance),
             studentLat: sLat,
             studentLng: sLng,
             lecturerLat: lLat,  
@@ -88,10 +102,19 @@ const Scanner = () => {
 
         } catch (e) {
           console.error("Scan Error:", e);
+          
+          // 1. Show the error state and message
           setScanStatus("error");
           setErrorMessage(e.response?.data?.message || e.message); 
-          setStopStream(true); 
-          setIsProcessing(false); 
+          
+          // 2. THE REFRESH FIX: 
+          // We wait 3 seconds so the student can read "QR Code Expired"
+          // then we force the browser to refresh the scanner page.
+          setTimeout(() => {
+            window.location.reload(); 
+          }, 3000); 
+
+          setStopStream(true);
         }
       }, (geoErr) => {
         setScanStatus("error");

@@ -8,6 +8,7 @@ const AttendanceSchema = new mongoose.Schema({
     },
     unitName: { type: String, required: true },
     unitCode: { type: String, required: true },
+    sessionId: { type: String },
     unitId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Unit', 
