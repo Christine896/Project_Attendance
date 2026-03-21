@@ -38,39 +38,54 @@ const LecturerDashboard = () => {
     const timerRef = useRef(null);
 
     useEffect(() => {
-      // If QR is turned off, clear any existing timer and exit
-      if (!showQR) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        return;
+    let pollInterval;
+
+    if (!showQR) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+
+    // 1. TIMER & QR ROTATION LOGIC
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setShowQR(false);
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        const newTime = prev - 1;
+        if (newTime % 10 === 0) setNonce(Date.now());
+        return newTime;
+      });
+    }, 1000);
+
+    // 2. LIVE ATTENDANCE POLLING (Step 11)
+    const fetchLiveCount = async () => {
+      try {
+        const targetCode = selectedUnit?.unitCode || selectedUnit?.code;
+        if (!targetCode) return;
+
+        // Fetch today's attendance for this specific unit
+        const response = await fetch(`http://localhost:5000/api/auth/lecturer/attendance/${targetCode}`);
+        const data = await response.json();
+        
+        // If the backend returns an array of records, update the count
+        if (Array.isArray(data)) {
+          setScannedCount(data.length); 
+        }
+      } catch (err) {
+        console.error("Live polling failed:", err);
       }
+    };
 
-      // Start the 1-second interval
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          // 1. Check if time is up
-          if (prev <= 1) {
-            setShowQR(false);
-            if (timerRef.current) clearInterval(timerRef.current);
-            return 0;
-          }
+    fetchLiveCount(); // Fetch immediately when session starts
+    pollInterval = setInterval(fetchLiveCount, 5000); // Fetch again every 5 seconds
 
-          const newTime = prev - 1;
-
-          // 2. The 10-Second QR Rotation
-          // We only update the 'nonce' if the newTime is a multiple of 10
-          if (newTime % 10 === 0) {
-            setNonce(Date.now());
-          }
-
-          return newTime;
-        });
-      }, 1000);
-
-      // Cleanup when component unmounts or showQR changes
-      return () => {
-        if (timerRef.current) clearInterval(timerRef.current);
-      };
-    }, [showQR]);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [showQR, selectedUnit]);
 
   const handleStartSession = () => {
   // FIX: Check for both naming styles (capitalized or not)
@@ -197,7 +212,7 @@ const LecturerDashboard = () => {
                     <Hash size={18} className="text-slate-600" />
                     <input 
                       type="text" readOnly 
-                      value={selectedUnit ? selectedUnit.code : ""} 
+                      value={selectedUnit?.unitCode || selectedUnit?.code || ""} 
                       placeholder="Auto-fills on match..."
                       className="bg-transparent outline-none w-full cursor-not-allowed text-sm italic font-mono tracking-widest"
                     />

@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const AttendanceSchema = new mongoose.Schema({
     student: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User', 
+        ref: 'Student', 
         required: true
     },
     unitName: { type: String, required: true },
