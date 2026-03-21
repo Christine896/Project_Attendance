@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BarcodeScannerComponent from "react-qr-barcode-scanner"; 
-import { ChevronLeft, ShieldCheck, VideoOff, Loader2, XCircle } from 'lucide-react';
+import { ChevronLeft, ShieldCheck, Loader2, XCircle } from 'lucide-react';
 import SuccessOverlay from '../components/SuccessOverlay';
 import { logAttendance } from '../services/api'; 
 
 const getDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371e3; // Radius of Earth in meters
+  const R = 6371e3; 
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -23,85 +23,96 @@ const Scanner = () => {
   const [hasError, setHasError] = useState(false);
   const [scanStatus, setScanStatus] = useState("success"); 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(""); // <--- ADDED to catch "Too Far" messages
+  const [errorMessage, setErrorMessage] = useState(""); 
 
-  const [overlayInfo, setOverlayInfo] = useState({ name: "", code: "" });
+  // The 3-second timer for the error/duplicate screen
+  useEffect(() => {
+    if (stopStream && scanStatus === 'error') {
+      const timer = setTimeout(() => {
+        navigate('/dashboard'); 
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [stopStream, scanStatus, navigate]);
 
-  //alert("Raw QR text: "+ result.text);
   const handleScan = async (err, result) => {
-  const user = JSON.parse(localStorage.getItem('user'));
+    const user = JSON.parse(localStorage.getItem('user'));
 
-  if (result?.text && !stopStream && !isProcessing) {
-    setIsProcessing(true);
+    if (result?.text && !stopStream && !isProcessing) {
+      setIsProcessing(true);
 
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      try {
-        const rawText = result.text.trim();
-        const data = JSON.parse(rawText);
-        
-        // 1. Store locally immediately so we don't wait for state
-        const scannedUnitCode = data.code || data.unitCode || "Unknown Code";
-        const scannedUnitName = data.name || data.unitName || "Unknown Unit";
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        try {
+          const rawText = result.text.trim();
+          const data = JSON.parse(rawText);
+          
+          const scannedUnitCode = data.code || data.unitCode || "Unknown Code";
+          const scannedUnitName = data.name || data.unitName || "Unknown Unit";
 
-        const lLat = Number(data.lat);
-        const lLng = Number(data.lng);
-        const sLat = position.coords.latitude;
-        const sLng = position.coords.longitude;
+          const lLat = Number(data.lat);
+          const lLng = Number(data.lng);
+          const sLat = position.coords.latitude;
+          const sLng = position.coords.longitude;
 
-        // 2. Location Guard - Check if QR even has lat/lng
-        if (!lLat || !lLng) {
-          throw new Error("Invalid QR: No location data found.");
-        }
-        
-        const distance = getDistance(lLat, lLng, sLat, sLng);
-        
-        // 3. Geofence Guard
-        if (distance > 50) {
-          setScanStatus("error");
-          setErrorMessage(`Too Far! You are ${Math.round(distance)}m away.`);
-          // Still set data so the overlay shows WHICH unit you are too far from
+          if (!lLat || !lLng) {
+            throw new Error("Invalid QR: No location data found.");
+          }
+          
+          const distance = getDistance(lLat, lLng, sLat, sLng);
+          
+          if (distance > 50) {
+            setScanStatus("error");
+            setErrorMessage(`Too Far! You are ${Math.round(distance)}m away.`);
+            setScannedData({ unitName: scannedUnitName, unitCode: scannedUnitCode });
+            setStopStream(true);
+            setIsProcessing(false);
+            return; 
+          }
+
+          await logAttendance({
+            studentId: user._id,
+            unitCode: scannedUnitCode,  
+            unitName: scannedUnitName,
+            unitId: data.unitId,
+            distance: distance,
+            studentLat: sLat,
+            studentLng: sLng,
+            lecturerLat: lLat,  
+            lecturerLng: lLng   
+          });
+
           setScannedData({ unitName: scannedUnitName, unitCode: scannedUnitCode });
+          setScanStatus("success");
           setStopStream(true);
           setIsProcessing(false);
-          return; 
+
+        } catch (e) {
+          console.error("Scan Error:", e);
+          setScanStatus("error");
+          setErrorMessage(e.response?.data?.message || e.message); 
+          setStopStream(true); 
+          setIsProcessing(false); 
         }
-
-        // 4. API Attendance Log
-        await logAttendance({
-          studentId: user._id,
-          unitCode: scannedUnitCode,  
-          unitName: scannedUnitName,
-          unitId: data.unitId,
-          distance: distance,
-          studentLat: sLat,
-          studentLng: sLng
-        });
-
-        // 5. Finalize Success
-        setScannedData({ unitName: scannedUnitName, unitCode: scannedUnitCode });
-        setScanStatus("success");
-        setStopStream(true);
-        setIsProcessing(false);
-
-      } catch (e) {
-        console.error("Scan Error:", e);
+      }, (geoErr) => {
         setScanStatus("error");
-        setErrorMessage(e.response?.data?.message || e.message); 
-        setStopStream(true); 
-        setIsProcessing(false); 
-      }
-    }, (geoErr) => {
-      setScanStatus("error");
-      setErrorMessage("GPS Error: Could not determine your location.");
-      setIsProcessing(false);
-      setStopStream(true);
-    }, { 
-      enableHighAccuracy: true, // For mobile phones, this is better for geofencing
-      timeout: 10000,
-      maximumAge: 0 
-    });
-  }
-};
+        setErrorMessage("GPS Error: Could not determine your location.");
+        setIsProcessing(false);
+        setStopStream(true);
+      }, { 
+        enableHighAccuracy: true, 
+        timeout: 10000,
+        maximumAge: 0 
+      });
+    }
+  };
+
+  // Helper function to safely render the text below the scanner
+  const getHelperText = () => {
+    if (isProcessing) return "Calculating distance...";
+    if (stopStream && scanStatus === 'success') return "Success!";
+    return "Align the QR code within the frame";
+  };
+
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-[#7DD3FC] via-[#CBD5E1] to-[#A5B4FC] flex flex-col font-sans overflow-hidden">
       
@@ -123,7 +134,7 @@ const Scanner = () => {
       </div>
 
       {/* MAIN CONTAINER */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 relative">
+      <div className="flex-1 flex flex-col items-center justify-center px-8 relative z-20">
         
         <div className="relative w-full aspect-square max-w-[345px] -mt-24">
           <div className="absolute top-0 left-0 w-12 h-12 border-t-[2.5px] border-l-[2.5px] border-[#6366F1] rounded-tl-3xl z-30 pointer-events-none shadow-[-2px_-2px_8px_rgba(99,102,241,0.3)]" />
@@ -148,11 +159,13 @@ const Scanner = () => {
                   )}
                 </div>
              ) : (
-                <div className={`w-full h-full flex flex-col items-center justify-center text-white transition-all duration-500 ${scanStatus === 'success' ? 'bg-cyan-500' : 'bg-rose-500'}`}>
-                  {scanStatus === 'success' ? <ShieldCheck size={54} /> : <XCircle size={54} />}
-                  <p className="font-black text-xs uppercase tracking-widest mt-2">
-                    {scanStatus === 'success' ? 'Captured' : 'Failed'}
-                  </p>
+                <div className={`w-full h-full flex flex-col items-center justify-center transition-all duration-500 ${scanStatus === 'success' ? 'bg-cyan-500 text-white' : 'bg-transparent'}`}>
+                  {scanStatus === 'success' && (
+                    <>
+                      <ShieldCheck size={54} />
+                      <p className="font-black text-xs uppercase tracking-widest mt-2">Captured</p>
+                    </>
+                  )}
                 </div>
              )}
 
@@ -162,28 +175,26 @@ const Scanner = () => {
           </div>
         </div>
 
-        <div className="mt-20 text-center px-6">
-          <p className="text-indigo-950/60 text-base font-medium leading-relaxed">
-            {isProcessing 
-              ? "Calculating distance..." 
-              : stopStream 
-                ? (scanStatus === 'success' ? "Success!" : errorMessage) // <--- CHANGED to show real error
-                : "Align the QR code within the frame"}
-          </p>
-        </div>
+        {/* HELPER TEXT - Only shows if there is NO error overlay */}
+        {!(stopStream && scanStatus === 'error') ? (
+          <div className="mt-20 text-center px-6 relative z-50">
+            <p className="text-indigo-950/60 text-base font-medium leading-relaxed">
+              {getHelperText()}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {/* FOOTER */}
-      <div className="pb-6 flex flex-col items-center gap-1.5 opacity-40">
+      <div className="pb-6 flex flex-col items-center gap-1.5 opacity-40 relative z-20">
         <div className="flex items-center gap-2">
           <ShieldCheck size={12} className="text-indigo-950" />
           <span className="text-indigo-950 text-[9px] font-black uppercase tracking-[0.3em]">GPS Geofence Active</span>
         </div>
       </div>
 
-      {/* OVERLAY COMPONENT */}
-      {/* OVERLAY COMPONENT */}
-      {stopStream && (
+      {/* 1. SUCCESS OVERLAY */}
+      {stopStream && scanStatus === 'success' && (
         <SuccessOverlay 
           unitName={scannedData?.unitName} 
           unitCode={scannedData?.unitCode} 
@@ -191,6 +202,15 @@ const Scanner = () => {
           message={errorMessage} 
           onComplete={() => navigate('/dashboard')} 
         />
+      )}
+
+      {/* 2. DUPLICATE / ERROR FULL-SCREEN PAGE */}
+      {stopStream && scanStatus === 'error' && (
+        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-[#7DD3FC] via-[#CBD5E1] to-[#A5B4FC] flex items-center justify-center p-10 animate-in fade-in zoom-in-95 duration-500">
+          <p className="text-3xl font-black text-center leading-snug tracking-tight bg-gradient-to-br from-indigo-600 to-purple-600 bg-clip-text text-transparent drop-shadow-sm">
+            {errorMessage}
+          </p>
+        </div>
       )}
 
       <style>

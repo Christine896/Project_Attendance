@@ -24,9 +24,9 @@ const Register = () => {
   const [isCourseOpen, setIsCourseOpen] = useState(false);
 
   const schoolData = {
-    "School of Computing": ["BSc. Software Engineering", "BSc. Computer Science", "BSc. IT"],
-    "School of Engineering": ["BSc. Civil Engineering", "BSc. Mechanical Engineering", "BSc. Electrical"],
-    "School of Business": ["BCom", "BSc. Economics", "Business Administration"]
+    "School of Computing": ["BSc. Software Engineering", "BSc. Computer Science", "BSc. Information Technology"],
+    "School of Engineering": ["BSc. Civil Engineering", "BSc. Mechanical Engineering", "BSc. Electrical Engineering"],
+    "School of Business": ["B.Commerce", "BSc. Economics", "Bsc. Business Administration"]
   };
 
   const handleSchoolSelect = (school) => {

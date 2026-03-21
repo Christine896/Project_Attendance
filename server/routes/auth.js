@@ -16,42 +16,36 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return R * c; 
 };
 
-// --- THE REGISTER DOORWAY ---
+
 // This listens for a "POST" request (sending data) to /register
 router.post('/register', async (req, res) => {
-    console.log("Registration Attempt:", req.body); // ADD THIS
     try {
-        const { fullName, regNo, email, password } = req.body;
+        // 1. Pull ALL fields including course and school
+        const { fullName, regNo, email, password, course, school } = req.body;
 
-        // 2. Check if the student is already in the database
-        // We use the Reg No because it's unique to every student
         let student = await Student.findOne({ regNo });
         if (student) {
-            return res.status(400).json({ message: "Student already registered with this Reg No" });
+            return res.status(400).json({ message: "Student already registered" });
         }
 
-        // 3. Scramble the password (Hashing)
-        // We create a "salt" (random noise) then mix it with the password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 4. Create a new "Student" using our Blueprint
-        student = new Student({
+        // 2. Save with course and school
+        const newStudent = new Student({
             fullName,
             regNo,
             email,
-            password: hashedPassword // We save the gibberish, NOT the real password
+            password: hashedPassword,
+            course, 
+            school
         });
 
-        // 5. Push the data to the MongoDB Cloud
-        await student.save();
-
-        // Success message sent back to the Website
+        await newStudent.save();
         res.status(201).json({ message: "Student registered successfully!" });
-
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Server error. Something went wrong on our end." });
+        console.error("❌ REGISTRATION FAILED:", error.message);
+        res.status(500).json({ message: "Server error: " + error.message });
     }
 });
 
@@ -81,12 +75,14 @@ router.post('/login', async (req, res) => {
 
         res.json({
             message: "Welcome back!",
-            token: token, // <--- THE GATE PASS
+            token: token, 
             student: {
                 _id: student._id,
                 fullName: student.fullName,
                 regNo: student.regNo,
                 email: student.email,
+                course: student.course, 
+                school: student.school, 
                 role: student.role || 'student'
             }
         });
@@ -102,35 +98,22 @@ const Attendance = require('../models/Attendance');
 // --- THE SCAN DOORWAY ---
 router.post('/scan', async (req, res) => {
     try {
-        // We now expect GPS coordinates from the QR code and the phone
-        const { unitName, unitCode, lecturerLat, lecturerLng, studentLat, studentLng, studentId } = req.body;
+        // 1. Pull unitId from the request body (sent by the scanner)
+        const { unitName, unitCode, unitId, lecturerLat, lecturerLng, studentLat, studentLng, studentId } = req.body;
 
-        // --- STEP 3: THE DATA GUARD ---
-        // This ensures the math doesn't run on "undefined" or "null" values
         if (!lecturerLat || !lecturerLng || !studentLat || !studentLng) {
-            console.log("Missing coordinates in request:", req.body);
-            return res.status(400).json({ 
-                message: "GPS data missing. Ensure both phone and lecturer have location enabled." 
-            });
+            return res.status(400).json({ message: "GPS data missing." });
         }
 
-        // 1. Calculate the physical distance
-        // Since we checked them above, we know these are now safe to calculate
         const distance = calculateDistance(
-            Number(lecturerLat), 
-            Number(lecturerLng), 
-            Number(studentLat), 
-            Number(studentLng)
+            Number(lecturerLat), Number(lecturerLng), 
+            Number(studentLat), Number(studentLng)
         );
-
-        // 2. The Geofence Check (50 Meters)
-        if (distance > 50) {
-            return res.status(403).json({ 
-                message: `Too far! You are ${Math.round(distance)}m away.` 
-            });
+        if (distance > 250) { 
+            return res.status(403).json({ message: `Too far! (${Math.round(distance)}m away)` });
         }
 
-        // 3. Double-Scan Prevention (Keep your existing logic)
+        // --- STEP 10: DUPLICATE CHECK ---
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -141,32 +124,31 @@ router.post('/scan', async (req, res) => {
         });
 
         if (alreadyScanned) {
-            return res.status(400).json({ message: "Attendance already recorded for today." });
+            return res.status(400).json({ 
+                message: "Your attendance for this unit has already been recorded." 
+            });
         }
 
-        // 4. Create record with the Distance field
+        // --- FIX: Include unitId to match your Schema ---
         const newRecord = new Attendance({
             student: studentId,
             unitName,
             unitCode,
-            distance: Math.round(distance), // Save the proof of location
+            unitId: unitId, // This was missing and causing your Server Error
+            distance: Math.round(distance),
             status: 'Present'
         });
 
         await newRecord.save();
-        res.status(201).json({ 
-            message: `Successfully signed for ${unitName}!`, 
-            distance: Math.round(distance) 
-        });
+        res.status(201).json({ message: `Verified!`, distance: Math.round(distance) });
 
     } catch (error) {
-        console.error(error);
+        console.error("Scan Logic Error:", error);
         res.status(500).json({ message: "Server error during verification." });
     }
 });
 
 // --- FETCH STUDENT ATTENDANCE HISTORY ---
-// This allows the student to see all their past scans
 router.get('/history/:studentId', async (req, res) => {
     try {
         const { studentId } = req.params;
