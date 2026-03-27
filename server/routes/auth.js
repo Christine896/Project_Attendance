@@ -22,7 +22,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 router.post('/register', async (req, res) => {
     try {
         // 1. Pull ALL fields including course and school
-        const { fullName, regNo, email, password, course, school } = req.body;
+        const { firstName, lastName, regNo, email, password, course, school } = req.body;
 
         let student = await Student.findOne({ regNo });
         if (student) {
@@ -34,7 +34,8 @@ router.post('/register', async (req, res) => {
 
         // 2. Save with course and school
         const newStudent = new Student({
-            fullName,
+            firstName,
+            lastName,
             regNo,
             email,
             password: hashedPassword,
@@ -79,7 +80,9 @@ router.post('/login', async (req, res) => {
             token: token, 
             student: {
                 _id: student._id,
-                fullName: student.fullName,
+                firstName: student.firstName,
+                lastName: student.lastName,
+                fullName: `${student.firstName} ${student.lastName}`,
                 regNo: student.regNo,
                 email: student.email,
                 course: student.course, 

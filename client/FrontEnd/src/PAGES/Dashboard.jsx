@@ -16,8 +16,15 @@ const Dashboard = () => {
 
   useEffect(() => {
   const savedUser = JSON.parse(localStorage.getItem('user'));
-  if (savedUser && savedUser.fullName) {
-    setUserName(savedUser.fullName.split(' ')[0]);
+  
+  if (savedUser) {
+    // 1. Get the raw name (prioritize firstName, fallback to splitting fullName)
+    const rawName = savedUser.firstName || savedUser.fullName?.split(' ')[0] || 'Student';
+    
+    // 2. Apply Sentence Case (Capitalize first letter, lowercase the rest)
+    const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase();
+    
+    setUserName(formattedName);
   }
 
   const calculateAttendance = async () => {

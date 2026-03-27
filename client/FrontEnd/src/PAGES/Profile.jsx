@@ -22,11 +22,18 @@ const Profile = () => {
   useEffect(() => {
     // Read the user object that was saved during Login/Registration
     const savedUser = JSON.parse(localStorage.getItem('user'));
+    
     if (savedUser) {
+      // COMBINE NAMES: If firstName and lastName exist, join them. 
+      // Otherwise, use the existing fullName string.
+      const combinedName = savedUser.firstName 
+        ? `${savedUser.firstName} ${savedUser.lastName}` 
+        : savedUser.fullName;
+
       setStudent({
         ...savedUser,
-        // Fallbacks just in case the data is missing from an old login
-        school: savedUser.school || "School of Computing ",
+        fullName: combinedName,
+        school: savedUser.school || "School of Computing",
         course: savedUser.course || "Information Technology"
       });
     }
@@ -71,14 +78,20 @@ const Profile = () => {
       </div>
 
       <div className="flex-1 flex flex-col">
-        {/* 2. AVATAR SECTION */}
+        {/* AVATAR SECTION */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-[28px] flex items-center justify-center shadow-xl border-2 border-blue-900/40">
             <CircleUser size={48} className="text-white" strokeWidth={1.5} />
           </div>
-          <h2 className="mt-5 text-2xl font-black text-slate-900 tracking-tight text-center px-4">{student.fullName}</h2>
-          {/* FIX: Increased font size from text-xs to text-sm, kept uppercase and tracking */}
-          <span className="mt-1 text-indigo-950 text-sm font-black uppercase tracking-[0.15em]">{student.regNo}</span>
+          
+          {/* The 'capitalize' class forces every word to start with an uppercase letter */}
+          <h2 className="mt-5 text-2xl font-black text-slate-900 tracking-tight text-center px-4 capitalize">
+            {student.fullName.toLowerCase()}
+          </h2>
+          
+          <span className="mt-1 text-indigo-950 text-sm font-black uppercase tracking-[0.15em]">
+            {student.regNo}
+          </span>
         </div>
 
         {/* 3. DETAILS LIST */}

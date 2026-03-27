@@ -7,7 +7,8 @@ const Register = () => {
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
-    fullName: '',
+    firstName: '', 
+    lastName: '',
     regNo: '',
     school: '',
     course: '',
@@ -116,13 +117,36 @@ const Register = () => {
             )}
 
             <form onSubmit={handleRegister} className="space-y-5">
-              <div className="space-y-1.5">
-                <label className={labelStyles}>Full Name</label>
-                <div className="relative flex items-center text-slate-500">
-                  <User className="absolute left-4" size={20} />
-                  <input type="text" required placeholder="Alex Johnson" className={inputBaseStyles}
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({...formData, fullName: e.target.value})} />
+              {/* NAME SECTION - SPLIT INTO TWO */}
+              <div className="flex gap-3"> 
+                <div className="space-y-1.5 flex-1">
+                  <label className={labelStyles}>First Name</label>
+                  <div className="relative flex items-center text-slate-500">
+                    <User className="absolute left-4" size={20} />
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="Alex" 
+                      className={inputBaseStyles}
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({...formData, firstName: e.target.value})} 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 flex-1">
+                  <label className={labelStyles}>Last Name</label>
+                  <div className="relative flex items-center text-slate-500">
+                    {/* Optional: You can hide the icon for the second field to keep it clean */}
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="Johnson" 
+                      className={inputBaseStyles.replace('pl-12', 'pl-4')} // Removing left padding since no icon
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({...formData, lastName: e.target.value})} 
+                    />
+                  </div>
                 </div>
               </div>
 
