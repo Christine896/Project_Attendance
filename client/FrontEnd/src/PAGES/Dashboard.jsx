@@ -40,22 +40,49 @@ const Dashboard = () => {
       setPercentage(finalPercent);
 
       // 3. Active/Upcoming Discovery (Your existing time-based logic)
+      // 3. Active/Upcoming Discovery (Synced with your DB 'schedule' array)
       const unitsRes = await getAllUnits();
-      const allUnits = unitsRes.data;
+      const allUnits = unitsRes.data || [];
+
+      // THE BOUNCER: Only keep units that match the student's exact course
       const myCourseUnits = allUnits.filter(u => u.course === savedUser.course);
 
       const today = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
-      const currentTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      // Forces 24-hour format "HH:MM" (e.g., "08:00") so math works perfectly
+      const currentTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-      const active = myCourseUnits.find(u => 
-        u.day === today && currentTime >= u.startTime && currentTime <= u.endTime
-      );
-      const upcoming = myCourseUnits.filter(u => 
-        u.day === today && u.startTime > currentTime
-      );
+      let currentActiveUnit = null;
+      let upcomingList = [];
 
-      setActiveSession(active);
-      setUpcomingUnits(upcoming);
+      myCourseUnits.forEach(unit => {
+        // Skip if schedule is missing or empty
+        if (!unit.schedule || !Array.isArray(unit.schedule)) return;
+
+        // Loop through the schedule array
+        unit.schedule.forEach(session => {
+          if (session.day === today) {
+            // Is the class happening RIGHT NOW?
+            if (currentTime >= session.startTime && currentTime <= session.endTime) {
+              currentActiveUnit = {
+                ...unit,
+                unitName: unit.name, // Maps DB 'name' to UI
+                timeRange: `${session.startTime} - ${session.endTime}`
+              };
+            }
+            // Is the class UPCOMING today?
+            else if (currentTime < session.startTime) {
+              upcomingList.push({
+                ...unit,
+                unitName: unit.name,
+                timeRange: `${session.startTime} - ${session.endTime}`
+              });
+            }
+          }
+        });
+      });
+
+      setActiveSession(currentActiveUnit);
+      setUpcomingUnits(upcomingList);
 
     } catch (err) {
       console.error("Attendance calculation failed", err);
@@ -101,39 +128,46 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* 2.5 UNIT BREAKDOWN (STEP 12) */}
-      <div className="mb-6 space-y-3">
-        {unitStats.map((stat, idx) => {
-          const unitPercent = stat.totalSessions > 0 
-            ? Math.round((stat.attended / stat.totalSessions) * 100) 
-            : 0;
-            
-          return (
-            <div key={idx} className="bg-white/40 backdrop-blur-md border border-white/50 p-3.5 rounded-2xl flex flex-col gap-2 shadow-sm">
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-slate-800 text-sm">{stat.unitName}</span>
-                <span className="text-xs font-black text-indigo-700">{unitPercent}%</span>
-              </div>
+      {/* 2.5 UNIT BREAKDOWN (HORIZONTAL CAROUSEL) */}
+      <div className="mb-6">
+        <h3 className="text-slate-900 font-black text-sm mb-3 tracking-tight ml-1">My Progress</h3>
+        
+        {/* The Carousel Container */}
+        <div className="flex overflow-x-auto gap-4 pb-2 snap-x snap-mandatory hide-scrollbar -mx-5 px-5">
+          {unitStats.map((stat, idx) => {
+            const unitPercent = stat.totalSessions > 0 
+              ? Math.round((stat.attended / stat.totalSessions) * 100) 
+              : 0;
               
-              {/* Progress Bar Track */}
-              <div className="w-full h-2 bg-indigo-900/10 rounded-full overflow-hidden">
-                {/* Progress Bar Fill */}
-                <div 
-                  className={`h-full rounded-full transition-all duration-1000 ${unitPercent < 50 ? 'bg-rose-500' : unitPercent < 75 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                  style={{ width: `${unitPercent}%` }}
-                />
+            return (
+              // Individual Card (Fixed width, snaps into place)
+              <div key={idx} className="bg-white/40 backdrop-blur-md border border-white/50 p-4 rounded-[24px] flex flex-col gap-2 shadow-sm min-w-[240px] snap-center shrink-0">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-bold text-slate-800 text-sm truncate pr-2">{stat.unitName}</span>
+                  <span className="text-xs font-black text-indigo-700">{unitPercent}%</span>
+                </div>
+                
+                {/* Progress Bar Track */}
+                <div className="w-full h-2 bg-indigo-900/10 rounded-full overflow-hidden">
+                  {/* Progress Bar Fill */}
+                  <div 
+                    className={`h-full rounded-full transition-all duration-1000 ${unitPercent < 50 ? 'bg-rose-500' : unitPercent < 75 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${unitPercent}%` }}
+                  />
+                </div>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                  Attended: {stat.attended} / {stat.totalSessions} Classes
+                </p>
               </div>
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                Attended: {stat.attended} / {stat.totalSessions} Classes
-              </p>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      {/* 3. ACTIVE SESSION CARD (Conditional Logic) */}
+      {/* 3. ACTIVE SESSION CARD (Dynamic DB Logic) */}
       <div className={`${mainCardStyles} mb-4 relative overflow-hidden`}>
-        {activeSession?.isActive ? (
+        {/* FIX: Removed the '.isActive' check, just check if the session exists */}
+        {activeSession ? (
           <>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl font-black text-slate-900 leading-tight">{activeSession.unitName}</h2>
@@ -142,9 +176,8 @@ const Dashboard = () => {
                 <span className="text-emerald-700 text-[9px] font-black uppercase tracking-widest">Active</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-slate-600 mb-5">
-              <MapPin size={14} className="text-indigo-800" />
-              <span className="text-xs font-semibold italic">{activeSession.room}</span>
+            <div className="flex items-center text-slate-600 mb-5">
+              <span className="text-xs font-semibold italic">{activeSession.timeRange}</span>
             </div>
             <button 
               onClick={() => navigate('/scanner')}
@@ -161,17 +194,23 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* 4. UPCOMING SESSIONS */}
-      <div className="flex flex-col flex-1">
+      {/* 4. UPCOMING SESSIONS (Dynamic DB Loop) */}
+      <div className="flex flex-col flex-1 mb-6">
         <h3 className="text-slate-900 font-black text-lg mb-3 tracking-tight">Upcoming</h3>
         <div className="space-y-3">
-          <div className={upcomingCardStyles}>
-            <div className="p-2.5 bg-white rounded-xl text-indigo-800"><Database size={18}/></div>
-            <div>
-              <h4 className="font-bold text-slate-900 text-sm">Database Systems</h4>
-              <p className="text-[9px] font-mono text-slate-600">14:00 PM - 15:30 PM</p>
-            </div>
-          </div>
+          {upcomingUnits.length > 0 ? (
+            upcomingUnits.map((unit, idx) => (
+              <div key={idx} className={upcomingCardStyles}>
+                <div className="p-2.5 bg-white rounded-xl text-indigo-800"><Database size={18}/></div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">{unit.unitName}</h4>
+                  <p className="text-[9px] font-mono text-slate-600">{unit.timeRange}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-slate-600 italic font-bold">No more upcoming classes today.</p>
+          )}
         </div>
       </div>
 
@@ -231,6 +270,15 @@ const Dashboard = () => {
           }
           .animate-bounce-subtle {
             animation: bounce-subtle 2.5s infinite ease-in-out;
+          }
+          
+          /* NEW: Hides scrollbar for the horizontal carousel */
+          .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+          }
+          .hide-scrollbar {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
           }
         `}
       </style>
