@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ChevronLeft, Mail, BookOpen, LogOut, GraduationCap, Lock, CalendarDays, CircleUser, Building2, X, Loader2
+  ChevronLeft, Mail, BookOpen, LogOut, GraduationCap, Lock, CircleUser, Building2, X, Loader2
 } from 'lucide-react';
 
 const Profile = () => {
@@ -11,8 +11,7 @@ const Profile = () => {
     regNo: "SCT211-0000/2022",
     email: "student@students.jkuat.ac.ke",
     school: "School of Computing",
-    course: "BSc. Computer Science",
-    year: "Year 1"
+    course: "BSc. Computer Science"
   });
 
   // MODAL STATES
@@ -21,27 +20,21 @@ const Profile = () => {
   const [modalSuccess, setModalSuccess] = useState(false);
 
   useEffect(() => {
+    // Read the user object that was saved during Login/Registration
     const savedUser = JSON.parse(localStorage.getItem('user'));
     if (savedUser) {
-      const parts = savedUser.regNo?.split('/') || [];
-      const admissionYear = parseInt(parts[parts.length - 1]);
-      const currentYear = 2026; 
-      const yearOfStudy = currentYear - admissionYear + 1;
-      
-      const calculatedYear = yearOfStudy > 0 && yearOfStudy <= 6 ? `Year ${yearOfStudy}` : yearOfStudy > 6 ? "Alumnus" : "Year 4";
-
       setStudent({
         ...savedUser,
-        school: savedUser.school || "School of Computing (SCIT)",
-        course: savedUser.course || "Information Technology",
-        year: calculatedYear
+        // Fallbacks just in case the data is missing from an old login
+        school: savedUser.school || "School of Computing ",
+        course: savedUser.course || "Information Technology"
       });
     }
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/');
+    navigate('/login'); // Fixed to route to /login instead of /
   };
 
   // MOCKUP: Password Update Logic
@@ -63,10 +56,10 @@ const Profile = () => {
   };
 
   const mainCardStyles = "bg-white/40 backdrop-blur-2xl rounded-[28px] border border-white/30 shadow-lg p-5 transition-all";
-  const iconContainerStyles = "p-3 bg-white/40 rounded-2xl shadow-sm text-indigo-900 border border-white/40";
+  const iconContainerStyles = "p-3 bg-white/40 rounded-2xl shadow-sm text-indigo-900 border border-white/40 shrink-0"; // Added shrink-0 to prevent icon squishing
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-[#93C5FD] via-[#C7D2FE] to-[#D8B4FE] flex flex-col font-sans overflow-hidden p-5">
+    <div className="relative min-h-screen bg-gradient-to-br from-[#93C5FD] via-[#C7D2FE] to-[#D8B4FE] flex flex-col font-sans overflow-hidden p-5 pb-24">
       
       {/* 1. HEADER */}
       <div className="flex justify-between items-center mb-8 pt-1">
@@ -83,12 +76,23 @@ const Profile = () => {
           <div className="w-20 h-20 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-[28px] flex items-center justify-center shadow-xl border-2 border-blue-900/40">
             <CircleUser size={48} className="text-white" strokeWidth={1.5} />
           </div>
-          <h2 className="mt-5 text-2xl font-black text-slate-900 tracking-tight">{student.fullName}</h2>
-          <span className="mt-1 text-indigo-950 text-xs font-black uppercase tracking-[0.15em]">{student.regNo}</span>
+          <h2 className="mt-5 text-2xl font-black text-slate-900 tracking-tight text-center px-4">{student.fullName}</h2>
+          {/* FIX: Increased font size from text-xs to text-sm, kept uppercase and tracking */}
+          <span className="mt-1 text-indigo-950 text-sm font-black uppercase tracking-[0.15em]">{student.regNo}</span>
         </div>
 
         {/* 3. DETAILS LIST */}
         <div className="space-y-3">
+          
+          {/* NEW: School Card */}
+          <div className={`${mainCardStyles} flex items-center gap-4 py-4`}>
+            <div className={iconContainerStyles}><Building2 size={20} strokeWidth={2.5} /></div>
+            <div>
+              <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">School / Faculty</p>
+              <p className="text-sm text-slate-900 font-bold leading-tight">{student.school}</p>
+            </div>
+          </div>
+
           <div className={`${mainCardStyles} flex items-center gap-4 py-4`}>
             <div className={iconContainerStyles}><GraduationCap size={20} strokeWidth={2.5} /></div>
             <div>
