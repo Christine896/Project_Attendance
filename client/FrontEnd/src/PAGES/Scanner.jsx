@@ -78,7 +78,7 @@ const Scanner = () => {
           const distance = getDistance(lLat, lLng, sLat, sLng);
           
           // SYNC WITH BACKEND: Allow up to 250m
-          if (distance > 250) {
+          if (distance > 2850) {
             throw new Error(`Too Far! You are ${Math.round(distance)}m away.`);
           }
 

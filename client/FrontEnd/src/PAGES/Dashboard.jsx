@@ -84,7 +84,7 @@ const Dashboard = () => {
       {/* 2. ATTENDANCE OVERVIEW */}
       <div className={`${mainCardStyles} mb-4 flex items-center justify-between`}>
         <div>
-          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">My Attendance</p>
+          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">Overall Attendance</p>
           <h2 className="text-4xl font-extrabold text-indigo-700 tracking-tighter">{percentage}%</h2>
         </div>
         <div className="relative w-16 h-16">

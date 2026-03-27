@@ -124,7 +124,7 @@ router.post('/scan', async (req, res) => {
             Number(lecturerLat), Number(lecturerLng), 
             Number(studentLat), Number(studentLng)
         );
-        if (distance > 75) { 
+        if (distance > 2850) { 
             return res.status(403).json({ message: `Too far! (${Math.round(distance)}m away)` });
         }
         // --- STEP 10: DUPLICATE CHECK ---
