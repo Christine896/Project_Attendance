@@ -27,6 +27,8 @@ const Dashboard = () => {
     setUserName(formattedName);
   }
 
+  
+
   const calculateAttendance = async () => {
     try {
       // 1. Fetch exact stats from our new backend route
@@ -92,6 +94,14 @@ const Dashboard = () => {
       setUpcomingUnits(upcomingList);
 
       const notifRes = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/${savedUser._id}`);
+      
+      // Check if this specific fetch failed due to session expiry
+      if (notifRes.status === 401 || notifRes.status === 403) {
+        localStorage.clear();
+        navigate('/login?message=Session expired. Please log in again.');
+        return;
+      }
+      
       const notifData = await notifRes.json();
       if (Array.isArray(notifData)) {
         const hasUnreadAlerts = notifData.some(n => n.isRead === false);
@@ -99,6 +109,13 @@ const Dashboard = () => {
       }
 
     } catch (err) {
+      // --- THE SESSION KICKER ---
+      // If the API returns 401 (Unauthorized) or 403 (Forbidden), the token is dead
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        localStorage.clear();
+        navigate('/login?message=Session expired. Please log in again.');
+        return;
+      }
       console.error("Attendance calculation failed", err);
     }
   };

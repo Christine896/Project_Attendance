@@ -89,9 +89,14 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#D8B4FE] via-[#93C5FD] to-[#475569] flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
       
-      <div className="absolute top-6 left-6 z-20">
-        <button onClick={() => navigate('/')} className="p-3 bg-white/50 backdrop-blur-md text-slate-700 hover:text-indigo-600 transition-all rounded-2xl border border-white/40 shadow-sm">
-          <ArrowLeft size={24} />
+     <div className="absolute top-6 left-6 z-20">
+        {/* PLAIN STYLE: No glassmorphism, just a clean icon button */}
+        <button 
+          onClick={() => navigate('/')} 
+          className="p-2 text-slate-700 hover:text-indigo-600 transition-all flex items-center gap-2 group"
+        >
+          <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-bold"></span>
         </button>
       </div>
 

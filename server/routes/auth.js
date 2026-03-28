@@ -22,6 +22,23 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c; 
 };
+    // --- TEMPORARY STAGING MODEL ---
+    const mongoose = require('mongoose');
+    const PendingStudentSchema = new mongoose.Schema({
+        firstName: String,
+        lastName: String,
+        regNo: { type: String, unique: true },
+        email: String,
+        password: { type: String }, // Hashed
+        course: String,
+        school: String,
+        otp: String,
+        otpExpires: Date
+    }, { timestamps: true });
+
+    // Auto-delete records after 15 minutes if not verified
+    PendingStudentSchema.index({ createdAt: 1 }, { expireAfterSeconds: 900 });
+    const PendingStudent = mongoose.model('PendingStudent', PendingStudentSchema);
 
 // ==========================================
 // 1. REGISTRATION & OTP GENERATION
@@ -30,37 +47,28 @@ router.post('/register', async (req, res) => {
     try {
         const { firstName, lastName, regNo, email, password, course, school } = req.body;
 
-        // Gatekeeper: JKUAT Domain Check
+        // 1. Domain & Existence Check
         if (!email.trim().toLowerCase().endsWith("@students.jkuat.ac.ke") && !email.trim().toLowerCase().endsWith("@jkuat.ac.ke")) {
             return res.status(403).json({ message: "Only JKUAT emails are allowed." });
         }
 
-        let student = await Student.findOne({ regNo });
-        if (student && student.isVerified) {
-            return res.status(400).json({ message: "Student already registered and verified." });
-        }
+        const alreadyVerified = await Student.findOne({ regNo });
+        if (alreadyVerified) return res.status(400).json({ message: "Student already registered and verified." });
 
+        // 2. Prep OTP & Hashing
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
-
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        if (student && !student.isVerified) {
-            student.firstName = firstName; student.lastName = lastName;
-            student.email = email; student.password = hashedPassword;
-            student.course = course; student.school = school;
-            student.otp = otp; student.otpExpires = otpExpires;
-            await student.save();
-        } else {
-            student = new Student({
-                firstName, lastName, regNo, email, password: hashedPassword,
-                course, school, otp, otpExpires, isVerified: false
-            });
-            await student.save();
-        }
+        // 3. Save to "Pending" Staging Area (Update if exists, else create)
+        await PendingStudent.findOneAndUpdate(
+            { regNo },
+            { firstName, lastName, email, password: hashedPassword, course, school, otp, otpExpires },
+            { upsert: true, new: true }
+        );
 
-        // 5. Send Email via Brevo REST API (The "Zero-Crash" Way)
+        // 4. Send Email via Brevo REST API
         try {
             await axios.post('https://api.brevo.com/v3/smtp/email', {
                 sender: { name: "JKUAT Attendance", email: process.env.SENDER_EMAIL },
@@ -69,7 +77,7 @@ router.post('/register', async (req, res) => {
                 htmlContent: `
                     <div style="font-family: sans-serif; text-align: center; padding: 40px; background: #f8fafc; border-radius: 12px;">
                         <h2 style="color: #1e293b;">JKUAT Attendance System</h2>
-                        <p style="color: #475569;">Hello ${firstName}, your code is:</p>
+                        <p style="color: #475569;">Hello ${firstName}, your verification code is:</p>
                         <div style="background: #ffffff; padding: 20px; border-radius: 8px; margin: 30px auto; max-width: 250px; border: 2px solid #e2e8f0;">
                             <h1 style="margin: 0; color: #4338ca; font-size: 32px; letter-spacing: 4px;">${otp}</h1>
                         </div>
@@ -78,15 +86,12 @@ router.post('/register', async (req, res) => {
                 headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' }
             });
 
-            console.log(`✅ OTP ${otp} sent to ${email} via REST API`);
             res.status(200).json({ message: "OTP sent to email", requireOtp: true });
 
         } catch (emailErr) {
-            console.error("❌ BREVO ERROR:", emailErr.response ? emailErr.response.data : emailErr.message);
             return res.status(500).json({ message: "Email delivery failed." });
         }
     } catch (error) {
-        console.error("❌ REGISTRATION FAILED:", error.message);
         res.status(500).json({ message: "Server error: " + error.message });
     }
 });
@@ -97,31 +102,38 @@ router.post('/register', async (req, res) => {
 router.post('/verify-otp', async (req, res) => {
     try {
         const { regNo, otp } = req.body;
-        const student = await Student.findOne({ regNo });
-        if (!student) return res.status(404).json({ message: "Student not found." });
-        if (student.otp !== otp) return res.status(400).json({ message: "Invalid code." });
-        if (new Date() > student.otpExpires) return res.status(400).json({ message: "Code expired." });
 
-        student.isVerified = true; student.otp = null; student.otpExpires = null;
-        await student.save();
+        // 1. Find in the Staging Area
+        const pending = await PendingStudent.findOne({ regNo });
+        if (!pending) return res.status(404).json({ message: "Registration session not found or expired." });
+
+        // 2. Validate OTP
+        if (pending.otp !== otp) return res.status(400).json({ message: "Invalid code." });
+        if (new Date() > pending.otpExpires) return res.status(400).json({ message: "Code expired. Please register again." });
+
+        // 3. THE MOMENT OF TRUTH: Transfer to the REAL Student collection
+        const verifiedStudent = new Student({
+            firstName: pending.firstName,
+            lastName: pending.lastName,
+            regNo: pending.regNo,
+            email: pending.email,
+            password: pending.password, // Already hashed
+            course: pending.course,
+            school: pending.school,
+            isVerified: true
+        });
+
+        await verifiedStudent.save();
+
+        // 4. Cleanup: Delete from Pending so it's not sitting in your DB
+        await PendingStudent.deleteOne({ regNo });
+
         res.status(200).json({ message: "Identity verified! You can now log in." });
-    } catch (error) { res.status(500).json({ message: "Verification error." }); }
+
+    } catch (error) {
+        res.status(500).json({ message: "Verification error." });
+    }
 });
-
-router.post('/login', async (req, res) => {
-    try {
-        const { regNo, password } = req.body;
-        const student = await Student.findOne({ regNo });
-        if (!student || !(await bcrypt.compare(password, student.password))) {
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
-        if (!student.isVerified) return res.status(403).json({ message: "Account not verified." });
-
-        const token = jwt.sign({ id: student._id, role: student.role || 'student' }, 'JKUAT_SECRET_2026', { expiresIn: '24h' });
-        res.json({ token, student });
-    } catch (error) { res.status(500).json({ message: "Login error" }); }
-});
-
 // ==========================================
 // 3. SCAN DOORWAY (Geofencing)
 // ==========================================

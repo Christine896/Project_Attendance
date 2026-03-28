@@ -21,3 +21,20 @@ html, body {
     color: #1e293b !important;
   }
 }
+
+/* 1. Fix: Kill Native Browser Password Icons */
+input::-ms-reveal,
+input::-ms-clear,
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+    display: none !important;
+}
+
+/* 2. Style: Glassmorphic Arrow Base */
+.glass-arrow {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.3s ease;
+}

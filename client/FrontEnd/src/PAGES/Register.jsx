@@ -99,15 +99,33 @@ const Register = () => {
     e.preventDefault();
     setError(""); 
 
+    // 1. Name Validation (Letters only)
+    const namePattern = /^[A-Za-z\s]+$/;
+    if (!namePattern.test(formData.firstName) || !namePattern.test(formData.lastName)) {
+      setError("Names should only contain letters.");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // 2. University Email Check
     if (!formData.email.trim().toLowerCase().endsWith("@students.jkuat.ac.ke")) {
       setError("You must use your JKUAT student email");
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return; 
     }
 
+    // 3. Student ID Format
     const regNoPattern = /^[A-Z]{3}\d{3}-\d{4}\/\d{4}$/;
     if (!regNoPattern.test(formData.regNo)) {
       setError("Invalid Student ID format");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // This now allows underscores (_) alongside other special characters
+    const passwordPattern = /^(?=.*[0-9])(?=.*[!@#$%^&*_])[a-zA-Z0-9!@#$%^&*_]{6,}$/;
+    if (!passwordPattern.test(formData.password)) {
+      setError("Password should have a minimum of 6 characters, 1 number, and 1 symbol");
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -119,7 +137,6 @@ const Register = () => {
 
     try {
       setIsLoading(true);
-      // Fetch directly instead of using api.js so we can handle the OTP response
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,12 +144,10 @@ const Register = () => {
       });
       
       const data = await res.json();
-      
       if (!res.ok) throw new Error(data.message);
 
-      // If backend says OTP sent, show the modal instead of redirecting
       if (data.requireOtp) {
-          // We save the ENTIRE form as a string so no data is lost on refresh
+          // Save the WHOLE form so data persists if the student goes to Gmail
           localStorage.setItem('isVerifying', 'true');
           localStorage.setItem('pendingFormData', JSON.stringify(formData));
           setShowOtpModal(true);
@@ -165,18 +180,10 @@ const Register = () => {
           const data = await res.json();
           if (!res.ok) throw new Error(data.message);
 
+          // SUCCESS: Wipe the temporary memory so the modal doesn't "haunt" the user
           localStorage.removeItem('isVerifying');
           localStorage.removeItem('pendingFormData');
 
-          setShowOtpModal(false);
-          setSuccessMsg("Registration successful!");
-
-          // --- STEP 3: CLEAR STORAGE HERE ---
-          // The OTP is correct! Wipe the "memory" so the modal doesn't auto-open again.
-          localStorage.removeItem('isVerifying');
-          localStorage.removeItem('pendingRegNo');
-
-          // Success logic follows
           setShowOtpModal(false);
           setSuccessMsg("Registration successful!");
 
@@ -185,9 +192,7 @@ const Register = () => {
           }, 2000);
 
       } catch (err) {
-          // ... rest of your error logic
           setError(err.message || "Verification failed.");
-          // NEW: Auto-clear the input and error after 2 seconds
           setTimeout(() => {
               setOtpValue("");
               setError("");
