@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import { registerStudent } from '../services/api'; 
-import { Eye, EyeOff, User, Building2, GraduationCap, BookOpenText, Mail, Lock, ChevronDown, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react'; 
+import { Eye, EyeOff, User, Building2, GraduationCap, BookOpenText, Mail, Lock, ChevronDown, AlertCircle, Loader2, CheckCircle2, ShieldCheck, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -23,6 +24,30 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSchoolOpen, setIsSchoolOpen] = useState(false);
   const [isCourseOpen, setIsCourseOpen] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [resendTimer, setResendTimer] = useState(60);
+
+  useEffect(() => {
+      const verifying = localStorage.getItem('isVerifying');
+      const savedData = localStorage.getItem('pendingFormData');
+
+      if (verifying === 'true' && savedData) {
+          const parsedData = JSON.parse(savedData);
+          
+          // 1. Put all the text back into the inputs
+          setFormData(parsedData); 
+          
+          // 2. Open the modal again
+          setShowOtpModal(true);
+          
+          // 3. Re-fill the course list so the dropdowns work
+          if (parsedData.school) {
+              setAvailableCourses(schoolData[parsedData.school] || []);
+          }
+      }
+  }, []);
 
   const schoolData = {
     "School of Computing": ["BSc. Software Engineering", "BSc. Computer Science", "BSc. Information Technology"],
@@ -41,6 +66,33 @@ const Register = () => {
     setFormData({ ...formData, course: course });
     setIsCourseOpen(false);
     setError("");
+  };
+
+  // --- NEW: COUNTDOWN TIMER FOR RESEND ---
+  useEffect(() => {
+    let interval;
+    if (showOtpModal && resendTimer > 0) {
+      interval = setInterval(() => setResendTimer((prev) => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [showOtpModal, resendTimer]);
+
+  // --- NEW: RESEND OTP FUNCTION ---
+  const handleResendOtp = async () => {
+    setResendTimer(60); // Reset timer
+    setError("");
+    setOtpValue("");
+    
+    try {
+      // Re-trigger the registration route to generate a new OTP
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+    } catch (err) {
+      setError("Failed to resend. Check your connection.");
+    }
   };
 
   const handleRegister = async (e) => {
@@ -67,21 +119,82 @@ const Register = () => {
 
     try {
       setIsLoading(true);
-      await registerStudent(formData);
+      // Fetch directly instead of using api.js so we can handle the OTP response
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
       
-      // TRIGGER MINIMALIST WHITE SUCCESS
-      setSuccessMsg("Registration successful");
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.message);
 
-      // Redirect after 2 seconds
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+      // If backend says OTP sent, show the modal instead of redirecting
+      if (data.requireOtp) {
+          // We save the ENTIRE form as a string so no data is lost on refresh
+          localStorage.setItem('isVerifying', 'true');
+          localStorage.setItem('pendingFormData', JSON.stringify(formData));
+          setShowOtpModal(true);
+      }
       
     } catch (err) {
-      setError(err.response?.data?.message || "Server error: Registration failed.");
+      setError(err.message || "Server error: Registration failed.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerifyOtp = async (e) => {
+      e.preventDefault();
+      setError("");
+      
+      if (otpValue.length !== 6) {
+          setError("OTP must be 6 digits.");
+          return;
+      }
+
+      try {
+          setIsVerifying(true);
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ regNo: formData.regNo, otp: otpValue })
+          });
+          
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message);
+
+          localStorage.removeItem('isVerifying');
+          localStorage.removeItem('pendingFormData');
+
+          setShowOtpModal(false);
+          setSuccessMsg("Registration successful!");
+
+          // --- STEP 3: CLEAR STORAGE HERE ---
+          // The OTP is correct! Wipe the "memory" so the modal doesn't auto-open again.
+          localStorage.removeItem('isVerifying');
+          localStorage.removeItem('pendingRegNo');
+
+          // Success logic follows
+          setShowOtpModal(false);
+          setSuccessMsg("Registration successful!");
+
+          setTimeout(() => {
+            navigate('/login');
+          }, 2000);
+
+      } catch (err) {
+          // ... rest of your error logic
+          setError(err.message || "Verification failed.");
+          // NEW: Auto-clear the input and error after 2 seconds
+          setTimeout(() => {
+              setOtpValue("");
+              setError("");
+          }, 2000);
+      } finally {
+          setIsVerifying(false);
+      }
   };
 
   const labelStyles = "text-[10px] font-bold text-slate-800 uppercase tracking-widest pl-1";
@@ -89,22 +202,37 @@ const Register = () => {
   const dropdownMenuStyles = "absolute z-50 w-full mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#D8B4FE] via-[#93C5FD] to-[#475569] flex flex-col items-center justify-center p-6 font-sans overflow-hidden">
-      
+    <div className={`min-h-screen flex flex-col items-center justify-center p-6 font-sans overflow-hidden transition-all duration-700 ${
+      successMsg 
+        ? "bg-gradient-to-br from-[#E9D5FF] via-[#DBEAFE] to-[#F8FAFC]" // Light background for Success
+        : "bg-gradient-to-br from-[#D8B4FE] via-[#93C5FD] to-[#475569]" // Original dark background for Form
+    }`}>
       {successMsg ? (
-        /* MINIMALIST WHITE SUCCESS SCREEN (2 SECONDS) */
+        /* RESTORED SIZE WITH GRADIENT VISIBILITY */
         <div className="flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-500">
+          
+          {/* 1. Define the gradient for the icon */}
+          <svg width="0" height="0" className="absolute">
+            <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop stopColor="#6366F1" offset="0%" />
+              <stop stopColor="#8B5CF6" offset="50%" />
+              <stop stopColor="#EC4899" offset="100%" />
+            </linearGradient>
+          </svg>
+
           <div className="relative mb-6">
-            {/* Subtle white glow */}
             <div className="absolute inset-0 bg-white/20 blur-[50px] rounded-full animate-pulse" />
+            {/* 2. The Icon (Original size 100, but using the gradient URL) */}
             <CheckCircle2 
               size={100} 
-              className="text-white relative z-10 opacity-90" 
-              strokeWidth={1.2} 
+              stroke="url(#icon-gradient)" 
+              className="relative z-10 drop-shadow-md" 
+              strokeWidth={1.5} 
             />
           </div>
           
-          <h1 className="text-3xl font-medium text-white tracking-tight opacity-90 drop-shadow-md">
+          {/* 3. The Text (Original size 3xl, using matching gradient) */}
+          <h1 className="text-3xl font-black bg-gradient-to-r from-[#6366F1] via-[#8B5CF6] to-[#EC4899] text-transparent bg-clip-text tracking-tight pb-1 drop-shadow-sm">
             {successMsg}
           </h1>
         </div>
@@ -251,6 +379,97 @@ const Register = () => {
           </div>
         </div>
       )}
+
+      {/* --- OTP MODAL OVERLAY --- */}
+      {showOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-[360px] bg-white/90 backdrop-blur-2xl rounded-[40px] p-8 shadow-2xl animate-in zoom-in duration-300">
+            
+            <button 
+              onClick={() => {
+                // 1. Wipe the "Persistence" memory
+                localStorage.removeItem('isVerifying');
+                localStorage.removeItem('pendingFormData');
+                
+                // 2. Actually close the modal
+                setShowOtpModal(false);
+              }} 
+              className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                    <ShieldCheck size={32} />
+                </div>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">Verify Identity</h2>
+                <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed px-2">
+                    We sent a 6-digit code to <br/><span className="font-bold text-indigo-600">{formData.email}</span>
+                </p>
+            </div>
+
+            {error && (
+              <div className="bg-rose-50 text-rose-600 p-3 rounded-xl mb-4 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-widest">{error}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyOtp} className="space-y-5">
+                <div className="space-y-1.5">
+                    <label className={labelStyles}>Security Code</label>
+                    <input 
+                        required 
+                        type="text" 
+                        maxLength="6"
+                        placeholder="123456" 
+                        className="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500/20 text-center text-2xl tracking-[0.5em] font-black text-slate-700 placeholder:text-slate-300 transition-all" 
+                        value={otpValue}
+                        onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))} // Only allow numbers
+                    />
+                </div>
+
+                <button disabled={isVerifying || otpValue.length !== 6} type="submit" 
+                    className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
+                    {isVerifying ? <Loader2 className="animate-spin" size={20} /> : "Verify & Continue"}
+                </button>
+            </form>
+
+          <div className="mt-6 text-center">
+                <p className="text-xs text-slate-500 font-medium">
+                    Didn't receive the code?{' '}
+                    {resendTimer > 0 ? (
+                        <span className="text-slate-400 font-bold">Resend in {resendTimer}s</span>
+                    ) : (
+                        <button 
+                          type="button" 
+                          onClick={handleResendOtp} 
+                          className="text-indigo-600 font-black hover:text-indigo-700 hover:underline transition-all"
+                        >
+                            Resend OTP
+                        </button>
+                    )}
+                </p>
+            </div>
+            
+          </div>
+        </div>
+      )}
+
+      <svg width="0" height="0" className="absolute pointer-events-none">
+        <defs>
+          <mask id="checkmark-mask" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox">
+            {/* Everything white is visible, everything black is invisible */}
+            <rect width="1" height="1" fill="white"/>
+            {/* We position the Lucide icon shape perfectly within the mask */}
+            <g transform="scale(0.02) translate(13, 13)">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="m9 11 3 3L22 4" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </g>
+          </mask>
+        </defs>
+      </svg>
+
     </div>
   );
 };
