@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: light !important;
+  --supported-color-schemes: light;
+}
+
+/* Force Light Mode and Kill Filters */
+html, body {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  color-scheme: light !important;
+}
+
+/* Prevent Dark Mode Media Query Overrides */
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
+  }
+}

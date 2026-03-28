@@ -12,6 +12,7 @@ import Profile from './PAGES/Profile';
 import LecturerDashboard from './PAGES/LecturerDashboard';
 import LecturerReports from './PAGES/LecturerReports';
 import AddUnit from './PAGES/AddUnit';
+import ResetPassword from './PAGES/ResetPassword';
 
 const ProtectedLecturerRoute = ({ children }) => {
   const userData = JSON.parse(localStorage.getItem('user'));
@@ -59,6 +60,7 @@ function App() {
         <Route path="/add-unit" element={<ProtectedLecturerRoute><AddUnit /></ProtectedLecturerRoute>} />
 
         <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
       </Routes>
     </div>
   );

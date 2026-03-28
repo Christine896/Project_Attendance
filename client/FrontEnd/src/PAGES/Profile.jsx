@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ChevronLeft, Mail, BookOpen, LogOut, GraduationCap, Lock, CircleUser, Building2, X, Loader2
+  ChevronLeft, Mail, BookOpen, LogOut, GraduationCap, Lock, CircleUser, Building2, X, Loader2, Eye, EyeOff 
 } from 'lucide-react';
 
 const Profile = () => {
@@ -18,6 +18,12 @@ const Profile = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [modalSuccess, setModalSuccess] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState(""); 
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
 
   useEffect(() => {
     // Read the user object that was saved during Login/Registration
@@ -48,18 +54,39 @@ const Profile = () => {
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsUpdating(false);
-    setModalSuccess(true);
-    
-    // Auto-close after success
-    setTimeout(() => {
-      setIsModalOpen(false);
-      setModalSuccess(false);
-    }, 2000);
+    setPasswordError("");
+
+    try {
+      const savedUser = JSON.parse(localStorage.getItem('user'));
+      
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          studentId: savedUser._id, 
+          currentPassword, 
+          newPassword 
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      setModalSuccess(true);
+      
+      // Clear inputs and close modal after success
+      setTimeout(() => {
+        setIsModalOpen(false);
+        setModalSuccess(false);
+        setCurrentPassword("");
+        setNewPassword("");
+      }, 2000);
+
+    } catch (err) {
+      setPasswordError(err.message || "Failed to update password.");
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const mainCardStyles = "bg-white/40 backdrop-blur-2xl rounded-[28px] border border-white/30 shadow-lg p-5 transition-all";
@@ -93,7 +120,7 @@ const Profile = () => {
             {student.regNo}
           </span>
         </div>
-
+ 
         {/* 3. DETAILS LIST */}
         <div className="space-y-3">
           
@@ -149,35 +176,78 @@ const Profile = () => {
             </button>
 
             {modalSuccess ? (
-              <div className="py-8 text-center animate-in fade-in">
-                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Lock size={32} />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">Password Updated</h3>
-                <p className="text-sm text-slate-500">Your security is now up to date.</p>
-              </div>
-            ) : (
-              <form onSubmit={handlePasswordSubmit} className="space-y-5">
-                <h2 className="text-xl font-black text-slate-900 mb-2">Security Update</h2>
-                
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Current Password</label>
-                  <input required type="password" placeholder="••••••••" className="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500/20 text-sm" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">New Password</label>
-                  <input required type="password" placeholder="••••••••" className="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500/20 text-sm" />
-                </div>
-
-                <button disabled={isUpdating} type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
-                  {isUpdating ? <Loader2 className="animate-spin" size={20} /> : "Update Password"}
-                </button>
-              </form>
-            )}
+          <div className="py-8 text-center animate-in fade-in">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock size={32} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">Password Updated</h3>
+            <p className="text-sm text-slate-500">Your security is now up to date.</p>
           </div>
-        </div>
-      )}
+        ) : (
+          <form onSubmit={handlePasswordSubmit} className="space-y-5">
+            <h2 className="text-xl font-black text-slate-900 mb-2">Security Update</h2>
+            
+            {/* Current Password Field */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Current Password</label>
+              <div className="relative flex items-center">
+                <input 
+                  required 
+                  type={showCurrent ? "text" : "password"} 
+                  placeholder="••••••••" 
+                  className="w-full p-4 pr-12 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500/20 text-sm transition-all" 
+                  value={currentPassword}
+                  onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(""); }}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowCurrent(!showCurrent)}
+                  className="absolute right-4 text-slate-400 hover:text-indigo-600 transition-colors"
+                >
+                  {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {/* New Password Field */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">New Password</label>
+              <div className="relative flex items-center">
+                <input 
+                  required 
+                  type={showNew ? "text" : "password"} 
+                  placeholder="••••••••" 
+                  className="w-full p-4 pr-12 bg-slate-100 rounded-2xl outline-none focus:ring-2 ring-indigo-500/20 text-sm transition-all" 
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowNew(!showNew)}
+                  className="absolute right-4 text-slate-400 hover:text-indigo-600 transition-colors"
+                >
+                  {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {passwordError && (
+              <div className="bg-rose-50 border border-rose-100 p-3 rounded-xl animate-in fade-in slide-in-from-top-1">
+                <p className="text-[10px] text-rose-600 font-bold uppercase text-center leading-tight">
+                  {passwordError}
+                </p>
+              </div>
+            )}
+
+            <button disabled={isUpdating} type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
+              {isUpdating ? <Loader2 className="animate-spin" size={20} /> : "Update Password"}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )}
     </div>
   );
 };

@@ -9,6 +9,8 @@ const Attendance = require('../models/Attendance');
 const Notification = require('../models/Notification');
 const axios = require('axios'); // Use axios to avoid the "Constructor" crash
 
+const crypto = require('crypto');
+
 // --- GPS LOGIC: Haversine Formula ---
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371e3; // Earth's radius in meters
@@ -227,6 +229,147 @@ router.put('/notifications/mark-read/:studentId', async (req, res) => {
         await Notification.updateMany({ student: req.params.studentId, isRead: false }, { $set: { isRead: true } });
         res.status(200).json({ message: "Marked all as read" });
     } catch (error) { res.status(500).json({ message: "Update failed" }); }
+});
+
+// ==========================================
+// STEP 16: FORGOT PASSWORD (Generate Link)
+// ==========================================
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        const student = await Student.findOne({ email });
+
+        if (!student) {
+            // Security best practice: Don't reveal if the email exists or not
+            return res.status(200).json({ message: "A reset link has been sent to the email." });
+        }
+
+        // Generate a secure, random 64-character hex token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        
+        // Save to database (Expires in 15 minutes)
+        student.resetPasswordToken = resetToken;
+        student.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+        await student.save();
+
+        // Create the reset link (pointing to your React frontend)
+        //const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+        
+        const resetUrl = `http://192.168.0.102:5173/reset-password/${resetToken}`;
+
+        // 5. Send Email via Brevo REST API (Matching your working register route)
+        await axios.post('https://api.brevo.com/v3/smtp/email', {
+            sender: { name: "JKUAT Security", email: process.env.SENDER_EMAIL },
+            to: [{ email: email }],
+            subject: "Password Reset Request",
+            htmlContent: `
+                <div style="font-family: sans-serif; text-align: center; padding: 40px; background: #f8fafc; border-radius: 12px;">
+                    <h2 style="color: #1e293b;">Password Reset</h2>
+                    <p style="color: #475569; font-size: 16px;">We received a request to reset your password.</p>
+                    <a href="${resetUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0;">Reset My Password</a>
+                    <p style="color: #94a3b8; font-size: 12px;">This link expires in 15 minutes. If you didn't request this, ignore this email.</p>
+                </div>
+            `
+        }, {
+            headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' }
+        });
+
+        res.status(200).json({ message: "A reset link has been sent to the email." });
+
+    } catch (error) {
+        console.error("Forgot Password Error:", error);
+        res.status(500).json({ message: "Error processing request." });
+    }
+});
+
+// ==========================================
+// STEP 16: RESET PASSWORD (Save New Password)
+// ==========================================
+router.post('/reset-password/:token', async (req, res) => {
+    try {
+        const { password } = req.body;
+        
+        // Find student with this token AND ensure it hasn't expired
+        const student = await Student.findOne({
+            resetPasswordToken: req.params.token,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!student) {
+            return res.status(400).json({ message: "Invalid or expired reset link." });
+        }
+
+        // Hash the new password
+        const salt = await bcrypt.genSalt(10);
+        student.password = await bcrypt.hash(password, salt);
+
+        // Clear the tokens so the link can't be used again
+        student.resetPasswordToken = null;
+        student.resetPasswordExpires = null;
+        await student.save();
+
+        res.status(200).json({ message: "Password has been successfully reset!" });
+
+    } catch (error) {
+        console.error("Reset Password Error:", error);
+        res.status(500).json({ message: "Server error during password reset." });
+    }
+});
+
+// ==========================================
+// STEP 16: CHANGE PASSWORD (Inside Profile)
+// ==========================================
+router.post('/change-password', async (req, res) => {
+    try {
+        const { studentId, currentPassword, newPassword } = req.body;
+        const student = await Student.findById(studentId);
+
+        if (!student) return res.status(404).json({ message: "Student not found." });
+
+        // 1. Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, student.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Current password is incorrect." });
+        }
+
+        // --- NEW SECURITY CHECK STARTS HERE ---
+        // Check if the new password is the same as the old one
+        const isSamePassword = await bcrypt.compare(newPassword, student.password);
+        if (isSamePassword) {
+            return res.status(400).json({ message: "New password cannot be the same as your current one." });
+        }
+        // --- NEW SECURITY CHECK ENDS HERE ---
+
+        // 2. Hash and Save new password
+        const salt = await bcrypt.genSalt(10);
+        student.password = await bcrypt.hash(newPassword, salt);
+        await student.save();
+
+        // 3. Send Security Alert via Brevo REST API
+        try {
+            await axios.post('https://api.brevo.com/v3/smtp/email', {
+                sender: { name: "JKUAT Security", email: process.env.SENDER_EMAIL },
+                to: [{ email: student.email }],
+                subject: "Security Alert: Password Changed",
+                htmlContent: `
+                    <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                        <h2 style="color: #1e293b;">Security Notification</h2>
+                        <p>Hello ${student.firstName},</p>
+                        <p>This is a confirmation that the password for your JKUAT Attendance account was recently changed.</p>
+                        <p style="color: #64748b; font-size: 14px;">If you did not perform this action, please contact the ICT department immediately.</p>
+                    </div>`
+            }, {
+                headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' }
+            });
+        } catch (emailErr) {
+            console.error("Alert Email Failed:", emailErr.message);
+        }
+
+        res.status(200).json({ message: "Password updated successfully!" });
+    } catch (error) {
+        console.error("Change Password Error:", error);
+        res.status(500).json({ message: "Server error during update." });
+    }
 });
 
 module.exports = router;
