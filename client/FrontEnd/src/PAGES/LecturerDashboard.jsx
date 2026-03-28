@@ -146,6 +146,23 @@ const LecturerDashboard = () => {
         };
         
         const newSessionId = Date.now().toString(); 
+        
+        // --- NEW: SEND MASTER ANCHOR TO BACKEND ---
+        try {
+            await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/session`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    unitCode: selectedUnit?.unitCode || selectedUnit?.code,
+                    unitName: selectedUnit?.unitName || selectedUnit?.name,
+                    sessionId: newSessionId
+                })
+            });
+        } catch (err) {
+            console.error("Failed to anchor session to backend", err);
+        }
+        // ------------------------------------------
+
         setSessionId(newSessionId);
         setLocation(coords);
         setIsCapturing(false);
@@ -161,6 +178,7 @@ const LecturerDashboard = () => {
           sessionId: newSessionId 
         }));
         
+        setNonce(Date.now());
         setShowQR(true);
       },
       (error) => {

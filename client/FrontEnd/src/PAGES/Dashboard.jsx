@@ -9,7 +9,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState('Student');
   const [percentage, setPercentage] = useState(0);
-  const [hasUnread, setHasUnread] = useState(true);
+  const [hasUnread, setHasUnread] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
   const [upcomingUnits, setUpcomingUnits] = useState([]);
   const [unitStats, setUnitStats] = useState([]);
@@ -90,6 +90,13 @@ const Dashboard = () => {
 
       setActiveSession(currentActiveUnit);
       setUpcomingUnits(upcomingList);
+
+      const notifRes = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/${savedUser._id}`);
+      const notifData = await notifRes.json();
+      if (Array.isArray(notifData)) {
+        const hasUnreadAlerts = notifData.some(n => n.isRead === false);
+        setHasUnread(hasUnreadAlerts);
+      }
 
     } catch (err) {
       console.error("Attendance calculation failed", err);

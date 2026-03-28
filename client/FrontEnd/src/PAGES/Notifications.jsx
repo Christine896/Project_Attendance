@@ -1,41 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ChevronLeft, 
-  CheckCircle2, 
-  AlertTriangle, 
-  BellRing,
-  MailCheck
+  ChevronLeft, CheckCircle2, AlertTriangle, BellRing, MailCheck, Loader2
 } from 'lucide-react';
 
 const Notifications = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Unread');
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1, 
-      title: 'Attendance Verified',
-      message: 'Your presence in Network Security has been successfully logged.',
-      time: '10:45 AM',
-      icon: <CheckCircle2 size={20} />,
-      iconBg: 'bg-emerald-500',
-      status: 'read'
-    },
-    {
-      id: 2,
-      title: 'Low Attendance Alert',
-      message: 'Your attendance for Network Security is currently 72%. Maintain 75% for exams.',
-      time: '09:12 AM',
-      icon: <AlertTriangle size={20} />,
-      iconBg: 'bg-rose-500',
-      status: 'unread'
-    },
-  ]);
+  const user = JSON.parse(localStorage.getItem('user'));
 
-  const handleMarkAllRead = () => {
-    const updated = notifications.map(n => ({ ...n, status: 'read' }));
-    setNotifications(updated);
+  const fetchedOnce = useRef(false); // NEW: The Strict Mode Lock
+
+  useEffect(() => {
+    const fetchAndMarkRead = async () => {
+      // 1. If we already fetched on this visit, stop immediately.
+      if (!user || fetchedOnce.current) return;
+      fetchedOnce.current = true; 
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/${user._id}`);
+        const data = await res.json();
+        
+        const formatted = data.map(n => ({
+          id: n._id,
+          title: n.title,
+          message: n.message,
+          time: new Date(n.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          icon: n.type === 'warning' ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />,
+          iconBg: n.type === 'warning' ? 'bg-rose-500' : 'bg-emerald-500',
+          status: n.isRead ? 'read' : 'unread'
+        }));
+        
+        setNotifications(formatted);
+        setIsLoading(false);
+
+        // 2. Mark them read in the backend silently
+        if (data.some(n => n.isRead === false)) {
+          await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/mark-read/${user._id}`, {
+            method: 'PUT'
+          });
+        }
+
+      } catch (err) {
+        console.error("Failed to fetch alerts:", err);
+        setIsLoading(false);
+      }
+    };
+    fetchAndMarkRead();
+  }, [user]);
+
+  const handleMarkAllRead = async () => {
+    if (!user) return;
+    try {
+      // Tell backend to mark read
+      await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/mark-read/${user._id}`, {
+          method: 'PUT'
+      });
+      // Update UI
+      const updated = notifications.map(n => ({ ...n, status: 'read' }));
+      setNotifications(updated);
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
+    }
   };
 
   const filteredNotifications = notifications.filter(n => 
@@ -60,6 +89,7 @@ const Notifications = () => {
         <button 
           onClick={handleMarkAllRead}
           className="p-2.5 text-indigo-800 active:scale-90 transition-all"
+          title="Mark all as read"
         >
           <MailCheck size={22} strokeWidth={2.5} />
         </button>
@@ -80,7 +110,12 @@ const Notifications = () => {
 
       {/* 3. LIST */}
       <div className="flex-1 overflow-y-auto pr-1">
-        {filteredNotifications.length > 0 ? (
+        {isLoading ? (
+           <div className="flex flex-col items-center justify-center py-20 text-center">
+             <Loader2 size={40} className="text-indigo-600 animate-spin mb-4" />
+             <p className="text-xs font-black uppercase tracking-widest text-indigo-900/50">Fetching alerts...</p>
+          </div>
+        ) : filteredNotifications.length > 0 ? (
           filteredNotifications.map((alert) => (
             <div key={alert.id} className={`${mainCardStyles} ${alert.status === 'unread' ? 'border-l-4 border-l-indigo-500' : ''}`}>
               <div className="flex gap-4">
@@ -92,7 +127,6 @@ const Notifications = () => {
                     <h3 className="font-black text-slate-900 text-sm tracking-tight">{alert.title}</h3>
                     <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{alert.time}</span>
                   </div>
-                  {/* REMOVED ITALIC - NOW NORMAL FONT */}
                   <p className="text-slate-600 text-xs leading-relaxed font-semibold">
                     {alert.message}
                   </p>

@@ -27,7 +27,7 @@ const Register = () => {
   const schoolData = {
     "School of Computing": ["BSc. Software Engineering", "BSc. Computer Science", "BSc. Information Technology"],
     "School of Engineering": ["BSc. Civil Engineering", "BSc. Mechanical Engineering", "BSc. Electrical Engineering"],
-    "School of Business": ["B.Commerce", "BSc. Economics", "Bsc. Business Administration"]
+    "School of Business": ["B.Commerce", "BSc. Economics", "BSc. Business Administration"]
   };
 
   const handleSchoolSelect = (school) => {
@@ -51,6 +51,13 @@ const Register = () => {
       setError("You must use your JKUAT student email");
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return; 
+    }
+
+    const regNoPattern = /^[A-Z]{3}\d{3}-\d{4}\/\d{4}$/;
+    if (!regNoPattern.test(formData.regNo)) {
+      setError("Invalid Student ID format");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
 
     if (!formData.school || !formData.course) {
@@ -210,7 +217,7 @@ const Register = () => {
                   <Mail className="absolute left-4" size={20} />
                   <input type="email" required placeholder="name@students.jkuat.ac.ke" className={inputBaseStyles}
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                    onChange={(e) => setFormData({...formData, email: e.target.value.toLowerCase()})} />
                 </div>
               </div>
 

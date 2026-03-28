@@ -1,40 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ChevronLeft, 
-  Search, 
-  Calendar,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  ClipboardList,
-  SearchX
+  ChevronLeft, Search, Calendar, Clock, CheckCircle2, 
+  XCircle, ClipboardList, SearchX, Loader2
 } from 'lucide-react';
 
 const History = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState('All'); 
+  const [logs, setLogs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Simulation: Replace with your actual database fetch later
-  const [logs, setLogs] = useState([
-    { id: 1, code: 'SIT 301', name: 'Network Security', date: '2026-03-10T10:00:00', status: 'Present' },
-    { id: 2, code: 'SIT 305', name: 'Distributed Systems', date: '2026-03-08T14:30:00', status: 'Present' },
-    { id: 3, code: 'SMA 302', name: 'Principles of Management', date: '2026-02-28T08:00:00', status: 'Absent' },
-    { id: 4, code: 'SIT 310', name: 'Knowledge-Based Systems', date: '2026-03-01T11:00:00', status: 'Present' },
-  ]);
+  // FETCH FROM MONGODB
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) return;
+
+        // Calls the route you already built in auth.js!
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/history/${user._id}`);
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+          // Map MongoDB schema to your UI state
+          const formattedLogs = data.map(record => ({
+            id: record._id,
+            code: record.unitCode,
+            name: record.unitName || "Unknown Unit",
+            date: record.date,
+            status: record.status || 'Present'
+          }));
+          setLogs(formattedLogs);
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Failed to fetch history:", error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, []);
 
   const filteredLogs = logs.filter(log => {
-    const matchesSearch = log.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          log.code.toLowerCase().includes(searchTerm.toLowerCase());
+    // 1. Safety check to prevent crashes if name/code is missing
+    const safeName = log.name || "";
+    const safeCode = log.code || "";
+    
+    const matchesSearch = safeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          safeCode.toLowerCase().includes(searchTerm.toLowerCase());
     
     const logDate = new Date(log.date);
     const now = new Date();
-    const diffDays = (now - logDate) / (1000 * 60 * 60 * 24);
+    // 2. Math.abs fixes the timezone/millisecond "future" glitch
+    const diffDays = Math.abs((now - logDate) / (1000 * 60 * 60 * 24));
 
     if (filter === 'Weekly') return matchesSearch && diffDays <= 7;
     if (filter === 'Monthly') return matchesSearch && diffDays <= 30;
-    return matchesSearch;
+    return matchesSearch; // For 'All'
   });
 
   const cardStyles = "bg-white/40 backdrop-blur-2xl rounded-[28px] border border-white/30 p-5 mb-4 shadow-lg shadow-indigo-500/5 transition-all active:scale-[0.98]";
@@ -84,8 +109,12 @@ const History = () => {
 
       {/* 4. LOGS LIST / EMPTY STATES */}
       <div className="flex-1 overflow-y-auto pr-1">
-        {logs.length === 0 ? (
-          /* CASE 1: NO RECORDS AT ALL IN DATABASE */
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+             <Loader2 size={40} className="text-indigo-600 animate-spin mb-4" />
+             <p className="text-xs font-black uppercase tracking-widest text-indigo-900/50">Loading History...</p>
+          </div>
+        ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-700">
             <div className="bg-white/20 p-6 rounded-full mb-4 backdrop-blur-lg">
               <ClipboardList size={48} className="text-indigo-900/40" strokeWidth={1.5} />
@@ -96,7 +125,6 @@ const History = () => {
             </p>
           </div>
         ) : filteredLogs.length > 0 ? (
-          /* CASE 2: LOGS EXIST AND MATCH FILTER/SEARCH */
           filteredLogs.map((log) => (
             <div key={log.id} className={cardStyles}>
               <div className="flex justify-between items-start mb-4">
@@ -123,7 +151,6 @@ const History = () => {
             </div>
           ))
         ) : (
-          /* CASE 3: LOGS EXIST BUT DON'T MATCH SEARCH/FILTER */
           <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in duration-500">
             <SearchX size={40} className="text-indigo-900/20 mb-3" />
             <p className="text-xs font-black uppercase tracking-widest text-indigo-900/40">No matching results</p>

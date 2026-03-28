@@ -49,13 +49,15 @@ const LecturerReports = () => {
         const sessionId = targetSession.sessionId;
 
         // 2. Fetch the data
-        const response = await fetch(`http://localhost:5000/api/auth/lecturer/attendance/${code}/${sessionId}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/attendance/${code}/${sessionId}`);
         const data = await response.json();
 
         if (Array.isArray(data)) {
           const formattedData = data.map(record => ({
             id: record._id,
-            name: record.student?.fullName || "Unknown Student",
+            name: (record.student?.firstName && record.student?.lastName) 
+          ? `${record.student.firstName.charAt(0).toUpperCase()}${record.student.firstName.slice(1).toLowerCase()} ${record.student.lastName.charAt(0).toUpperCase()}${record.student.lastName.slice(1).toLowerCase()}` 
+          : "Unknown Student",
             regNo: record.student?.regNo || "N/A",
             time: new Date(record.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }));
