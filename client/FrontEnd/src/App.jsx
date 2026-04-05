@@ -59,8 +59,11 @@ function App() {
         <Route path="/class-list" element={<ProtectedLecturerRoute><LecturerReports /></ProtectedLecturerRoute>} />
         <Route path="/add-unit" element={<ProtectedLecturerRoute><AddUnit /></ProtectedLecturerRoute>} />
 
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* 1. MOVE RESET PASSWORD ABOVE THE ASTERISK */}
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+        {/* 2. THE ASTERISK MUST ALWAYS BE LAST */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
   );

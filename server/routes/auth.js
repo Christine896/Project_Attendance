@@ -99,6 +99,9 @@ router.post('/register', async (req, res) => {
 // ==========================================
 // 2. OTP VERIFICATION & LOGIN
 // ==========================================
+// ==========================================
+// 2. OTP VERIFICATION & LOGIN (Surgical Fix)
+// ==========================================
 router.post('/verify-otp', async (req, res) => {
     try {
         const { regNo, otp } = req.body;
@@ -111,29 +114,91 @@ router.post('/verify-otp', async (req, res) => {
         if (pending.otp !== otp) return res.status(400).json({ message: "Invalid code." });
         if (new Date() > pending.otpExpires) return res.status(400).json({ message: "Code expired. Please register again." });
 
-        // 3. THE MOMENT OF TRUTH: Transfer to the REAL Student collection
+        // 3. THE FIX: Transfer ALL required fields from Pending to Student
         const verifiedStudent = new Student({
             firstName: pending.firstName,
             lastName: pending.lastName,
             regNo: pending.regNo,
             email: pending.email,
-            password: pending.password, // Already hashed
-            course: pending.course,
-            school: pending.school,
+            password: pending.password, 
+            course: pending.course, // <--- CRITICAL FIX
+            school: pending.school, // <--- CRITICAL FIX
             isVerified: true
         });
 
-        await verifiedStudent.save();
+        // 4. Save and handle potential validation errors
+        try {
+            await verifiedStudent.save();
+        } catch (saveError) {
+            console.error("DB Validation Error:", saveError.message);
+            return res.status(500).json({ message: "Database save failed: " + saveError.message });
+        }
 
-        // 4. Cleanup: Delete from Pending so it's not sitting in your DB
+        // 5. Cleanup
         await PendingStudent.deleteOne({ regNo });
 
         res.status(200).json({ message: "Identity verified! You can now log in." });
 
     } catch (error) {
-        res.status(500).json({ message: "Verification error." });
+        console.error("Verification Error:", error);
+        res.status(500).json({ message: "Internal server error during verification." });
     }
 });
+
+// ==========================================
+// LOGIN ENGINE (The Missing Link)
+// ==========================================
+router.post('/login', async (req, res) => {
+    try {
+        const { regNo, password } = req.body;
+
+        // 1. Find User by RegNo
+        const user = await Student.findOne({ regNo });
+        if (!user) {
+            return res.status(404).json({ message: "Account not found. Please register first." });
+        }
+
+        // 2. Check if OTP was verified (Safety check)
+        if (!user.isVerified) {
+            return res.status(403).json({ message: "Account not verified. Please check your email for the OTP." });
+        }
+
+        // 3. Check Password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid credentials." });
+        }
+
+        // 4. Generate Security Token (JWT)
+        const token = jwt.sign(
+            { id: user._id, role: user.role }, 
+            process.env.JWT_SECRET || 'your_secret_key', 
+            { expiresIn: '7d' }
+        );
+
+        // 5. Send back user data (excluding password)
+        const userResponse = {
+            _id: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            regNo: user.regNo,
+            email: user.email,
+            role: user.role,
+            course: user.course,
+            school: user.school
+        };
+
+        res.status(200).json({
+            token,
+            student: userResponse // Matches your frontend 'response.data.student' logic
+        });
+
+    } catch (error) {
+        console.error("Login Error:", error);
+        res.status(500).json({ message: "Server error during login." });
+    }
+});
+
 // ==========================================
 // 3. SCAN DOORWAY (Geofencing)
 // ==========================================
@@ -246,47 +311,49 @@ router.put('/notifications/mark-read/:studentId', async (req, res) => {
 // ==========================================
 // STEP 16: FORGOT PASSWORD (Generate Link)
 // ==========================================
+// ==========================================
+// STEP 16: FORGOT PASSWORD (Generate Link)
+// ==========================================
 router.post('/forgot-password', async (req, res) => {
     try {
-        const { email } = req.body;
-        const student = await Student.findOne({ email });
+        const { regNo } = req.body;
 
-        if (!student) {
-            // Security best practice: Don't reveal if the email exists or not
-            return res.status(200).json({ message: "A reset link has been sent to the email." });
+        // 1. STRICT GATEKEEPER: Reject empty requests immediately
+        if (!regNo || regNo.trim() === "") {
+            return res.status(400).json({ message: "Registration number is required." });
         }
 
-        // Generate a secure, random 64-character hex token
+        // 2. Search by Registration Number, NOT email
+        const student = await Student.findOne({ regNo });
+
+        if (!student) {
+            return res.status(200).json({ message: "If that ID exists, a reset link has been sent." });
+        }
+
         const resetToken = crypto.randomBytes(32).toString('hex');
-        
-        // Save to database (Expires in 15 minutes)
         student.resetPasswordToken = resetToken;
         student.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
         await student.save();
 
-        // Create the reset link (pointing to your React frontend)
-        //const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
-        
         const resetUrl = `http://192.168.0.102:5173/reset-password/${resetToken}`;
 
-        // 5. Send Email via Brevo REST API (Matching your working register route)
         await axios.post('https://api.brevo.com/v3/smtp/email', {
             sender: { name: "JKUAT Security", email: process.env.SENDER_EMAIL },
-            to: [{ email: email }],
+            to: [{ email: student.email }], // Uses the specific email attached to this RegNo
             subject: "Password Reset Request",
             htmlContent: `
                 <div style="font-family: sans-serif; text-align: center; padding: 40px; background: #f8fafc; border-radius: 12px;">
                     <h2 style="color: #1e293b;">Password Reset</h2>
-                    <p style="color: #475569; font-size: 16px;">We received a request to reset your password.</p>
+                    <p style="color: #475569; font-size: 16px;">We received a password reset request for account: <strong>${regNo}</strong>.</p>
                     <a href="${resetUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0;">Reset My Password</a>
-                    <p style="color: #94a3b8; font-size: 12px;">This link expires in 15 minutes. If you didn't request this, ignore this email.</p>
+                    <p style="color: #94a3b8; font-size: 12px;">This link expires in 15 minutes.</p>
                 </div>
             `
         }, {
             headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' }
         });
 
-        res.status(200).json({ message: "A reset link has been sent to the email." });
+        res.status(200).json({ message: "A reset link has been sent to the registered email." });
 
     } catch (error) {
         console.error("Forgot Password Error:", error);

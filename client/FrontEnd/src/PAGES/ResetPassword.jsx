@@ -30,14 +30,13 @@ const ResetPassword = () => {
     try {
       setIsLoading(true);
       
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/reset-password/${token}`, {
+      const res = await fetch(`http://192.168.0.102:5000/api/auth/reset-password/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password })
       });
       
       const data = await res.json();
-      
       if (!res.ok) throw new Error(data.message);
 
       // Trigger the beautiful success screen

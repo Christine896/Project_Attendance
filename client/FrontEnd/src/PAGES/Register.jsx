@@ -84,12 +84,11 @@ const Register = () => {
     setOtpValue("");
     
     try {
-      // Re-trigger the registration route to generate a new OTP
-      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register`, {
+      await fetch('http://192.168.0.102:5000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
-      });
+      });;
     } catch (err) {
       setError("Failed to resend. Check your connection.");
     }
@@ -137,12 +136,12 @@ const Register = () => {
 
     try {
       setIsLoading(true);
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register`, {
+      // Replace the old fetch with this:
+      const res = await fetch('http://192.168.0.102:5000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
-      
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
 
@@ -171,7 +170,8 @@ const Register = () => {
 
       try {
           setIsVerifying(true);
-          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/verify-otp`, {
+          // Replace the old fetch with this:
+         const res = await fetch('http://192.168.0.102:5000/api/auth/verify-otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ regNo: formData.regNo, otp: otpValue })

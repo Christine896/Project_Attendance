@@ -12,7 +12,6 @@ const Login = () => {
 
   // --- FORGOT PASSWORD STATES ---
   const [showForgotModal, setShowForgotModal] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMessage, setForgotMessage] = useState("");
   const [forgotError, setForgotError] = useState("");
@@ -53,17 +52,12 @@ const Login = () => {
       setForgotError("");
       setForgotMessage("");
 
-      if (!forgotEmail.trim().toLowerCase().endsWith("@students.jkuat.ac.ke") && !forgotEmail.trim().toLowerCase().endsWith("@jkuat.ac.ke")) {
-          setForgotError("Please enter a valid JKUAT email address.");
-          return;
-      }
-
       try {
           setForgotLoading(true);
-          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/forgot-password`, {
+          const res = await fetch(`http://192.168.0.102:5000/api/auth/forgot-password`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: forgotEmail })
+              body: JSON.stringify({ regNo: regNumber }) // Send the main regNumber state
           });
           
           const data = await res.json();
@@ -73,7 +67,6 @@ const Login = () => {
           setTimeout(() => {
               setShowForgotModal(false);
               setForgotMessage("");
-              setForgotEmail("");
           }, 4000);
 
       } catch (err) {
@@ -148,6 +141,11 @@ const Login = () => {
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
+                  // Enforce entering RegNo first
+                  if (!regNumber.trim()) {
+                    setError("Please enter your Registration Number above to reset your password.");
+                    return;
+                  }
                   setShowForgotModal(true);
                 }} 
                 className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer py-1"
@@ -203,24 +201,14 @@ const Login = () => {
               </div>
             ) : (
               <form onSubmit={handleForgotPassword} className="space-y-5">
-                  <div className="space-y-1.5">
-                      <label className={labelStyles}>Institutional Email</label>
-                      <div className="relative flex items-center">
-                          <Mail className="absolute left-4 text-slate-500" size={20} />
-                          <input 
-                              required 
-                              type="email" 
-                              placeholder="name@students.jkuat.ac.ke" 
-                              className={inputStyles}
-                              value={forgotEmail}
-                              onChange={(e) => setForgotEmail(e.target.value.toLowerCase())} 
-                          />
-                      </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
+                      <p className="text-sm text-slate-700 font-medium">Send reset link for:</p>
+                      <p className="text-lg font-black text-indigo-700 uppercase tracking-wider mt-1">{regNumber}</p>
                   </div>
 
-                  <button disabled={forgotLoading || !forgotEmail} type="submit" 
+                  <button disabled={forgotLoading} type="submit" 
                       className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
-                      {forgotLoading ? <Loader2 className="animate-spin" size={20} /> : "Send Reset Link"}
+                      {forgotLoading ? <Loader2 className="animate-spin" size={20} /> : "Confirm & Send Link"}
                   </button>
               </form>
             )}
