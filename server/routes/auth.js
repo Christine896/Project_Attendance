@@ -206,7 +206,7 @@ router.post('/login', async (req, res) => {
 });
 
 // ==========================================
-// 3. SCAN DOORWAY (Geofencing)
+// 3. SCAN DOORWAY (Geofencing & Security)
 // ==========================================
 router.post('/scan', async (req, res) => {
     try {
@@ -214,18 +214,45 @@ router.post('/scan', async (req, res) => {
         const student = await Student.findById(studentId);
         const unit = await Unit.findOne({ code: unitCode });
 
-        if (student.course !== unit.course) return res.status(403).json({ message: `This unit is for ${unit.course} students.` });
+        // 🚨 SECURITY CHECK 1: Correct Course?
+        if (student.course !== unit.course) {
+            return res.status(403).json({ message: `Denied: This unit is for ${unit.course} students.` });
+        }
 
+        // 🚨 SECURITY CHECK 2: Correct Semester? (THE SURGICAL FIX)
+        if (student.semester !== unit.semester) {
+            return res.status(403).json({ message: `Denied: This unit is for ${unit.semester} students.` });
+        }
+
+        // 🚨 SECURITY CHECK 3: Geofencing
         const distance = calculateDistance(Number(lecturerLat), Number(lecturerLng), Number(studentLat), Number(studentLng));
-        if (distance > 2850) return res.status(403).json({ message: `Too far! (${Math.round(distance)}m away)` });
+        if (distance > 2850) {
+            return res.status(403).json({ message: `Too far! (${Math.round(distance)}m away)` });
+        }
 
+        // 🚨 SECURITY CHECK 4: No Double Scanning
         const alreadyScanned = await Attendance.findOne({ student: studentId, sessionId });
-        if (alreadyScanned) return res.status(400).json({ message: "Attendance already recorded." });
+        if (alreadyScanned) {
+            return res.status(400).json({ message: "Attendance already recorded." });
+        }
 
-        const newRecord = new Attendance({ student: studentId, unitName, unitCode, unitId, sessionId, distance: Math.round(distance), status: 'Present' });
+        // Save the valid scan
+        const newRecord = new Attendance({ 
+            student: studentId, 
+            unitName, 
+            unitCode, 
+            unitId, 
+            sessionId, 
+            distance: Math.round(distance), 
+            status: 'Present' 
+        });
         await newRecord.save();
         res.status(201).json({ message: "Verified!", distance: Math.round(distance) });
-    } catch (error) { res.status(500).json({ message: "Scan Error" }); }
+
+    } catch (error) { 
+        console.error("Scan Error:", error);
+        res.status(500).json({ message: "Scan Error" }); 
+    }
 });
 
 // ==========================================
@@ -247,7 +274,7 @@ router.get('/lecturer/attendance/:unitCode/:sessionId', async (req, res) => {
 
 router.post('/lecturer/unit/:unitId/increment', async (req, res) => {
     try {
-        const updated = await Unit.findByIdAndUpdate(req.params.unitId, { $inc: { totalSessions: 1 } }, { new: true });
+        const updated = await Unit.findByIdAndUpdate(req.params.unitId, { $inc: { totalSessions: 1 } }, { returnDocument: 'after' });
         res.status(200).json(updated);
     } catch (error) { res.status(500).json({ message: "Increment failed" }); }
 });
@@ -456,6 +483,58 @@ router.post('/change-password', async (req, res) => {
     } catch (error) {
         console.error("Change Password Error:", error);
         res.status(500).json({ message: "Server error during update." });
+    }
+});
+
+// ==========================================
+// STEP 19: MANUAL ATTENDANCE OVERRIDE
+// ==========================================
+router.post('/lecturer/attendance/toggle', async (req, res) => {
+    try {
+        const { studentId, sessionId, unitCode, unitName, unitId, action } = req.body;
+
+        if (action === 'mark_present') {
+            // Prevent duplicates if clicked twice quickly
+            const existing = await Attendance.findOne({ student: studentId, sessionId });
+            if (!existing) {
+                const newRecord = new Attendance({
+                    student: studentId,
+                    unitName,
+                    unitCode,
+                    unitId,
+                    sessionId,
+                    distance: 0, // Bypasses GPS
+                    status: 'Manual' // Flags it as a lecturer override
+                });
+                await newRecord.save();
+            }
+        } else if (action === 'mark_absent') {
+            // "Untoggle" a student by deleting their scan for this session
+            await Attendance.deleteOne({ student: studentId, sessionId });
+        }
+
+        res.status(200).json({ message: "Attendance updated manually." });
+    } catch (error) {
+        console.error("Toggle Error:", error);
+        res.status(500).json({ message: "Failed to toggle attendance." });
+    }
+});
+
+// FETCH ALL STUDENTS EXPECTED FOR A SPECIFIC UNIT (By Course & Semester)
+router.get('/expected-students/:course/:semester', async (req, res) => {
+    try {
+        const { course, semester } = req.params;
+        
+        // Find students who match BOTH the course and the semester
+        const students = await Student.find({ 
+            course: course, 
+            semester: semester 
+        }).select('firstName lastName regNo _id').sort({ firstName: 1 });
+
+        res.status(200).json(students);
+    } catch (error) {
+        console.error("Error fetching expected students:", error);
+        res.status(500).json({ message: "Failed to fetch student list." });
     }
 });
 
