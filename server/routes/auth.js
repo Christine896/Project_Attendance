@@ -32,6 +32,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
         password: { type: String }, // Hashed
         course: String,
         school: String,
+        semester: String,
         otp: String,
         otpExpires: Date
     }, { timestamps: true });
@@ -45,7 +46,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 // ==========================================
 router.post('/register', async (req, res) => {
     try {
-        const { firstName, lastName, regNo, email, password, course, school } = req.body;
+        const { firstName, lastName, regNo, email, password, course, semester, school } = req.body;
 
         // 1. Domain & Existence Check
         if (!email.trim().toLowerCase().endsWith("@students.jkuat.ac.ke") && !email.trim().toLowerCase().endsWith("@jkuat.ac.ke")) {
@@ -57,6 +58,9 @@ router.post('/register', async (req, res) => {
 
         // 2. Prep OTP & Hashing
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        console.log(`\n🚨 [DEV MODE] OTP for ${email} is: ${otp} 🚨\n`); //developer hack to view all otp;valid and invalid
+
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -64,8 +68,8 @@ router.post('/register', async (req, res) => {
         // 3. Save to "Pending" Staging Area (Update if exists, else create)
         await PendingStudent.findOneAndUpdate(
             { regNo },
-            { firstName, lastName, email, password: hashedPassword, course, school, otp, otpExpires },
-            { upsert: true, new: true }
+            { firstName, lastName, email, password: hashedPassword, course, semester, school, otp, otpExpires },
+            { upsert: true, returnDocument: 'after' }
         );
 
         // 4. Send Email via Brevo REST API
@@ -121,8 +125,9 @@ router.post('/verify-otp', async (req, res) => {
             regNo: pending.regNo,
             email: pending.email,
             password: pending.password, 
-            course: pending.course, // <--- CRITICAL FIX
-            school: pending.school, // <--- CRITICAL FIX
+            course: pending.course,
+            semester: pending.semester, 
+            school: pending.school, 
             isVerified: true
         });
 
@@ -178,14 +183,15 @@ router.post('/login', async (req, res) => {
 
         // 5. Send back user data (excluding password)
         const userResponse = {
-            _id: user._id,
+            _id: user._id, 
             firstName: user.firstName,
             lastName: user.lastName,
             regNo: user.regNo,
             email: user.email,
             role: user.role,
             course: user.course,
-            school: user.school
+            school: user.school,
+            semester: user.semester
         };
 
         res.status(200).json({
@@ -255,7 +261,7 @@ router.get('/history/:studentId', async (req, res) => {
         const presentRecords = await Attendance.find({ student: req.params.studentId }).lean();
         const presentSessionIds = presentRecords.map(r => r.sessionId);
 
-        const courseUnits = await Unit.find({ course: student.course });
+        const courseUnits = await Unit.find({ course: student.course, semester: student.semester });
         const masterSessions = await ClassSession.find({ unitCode: { $in: courseUnits.map(u => u.code) } }).lean();
 
         let fullHistory = [...presentRecords];
@@ -272,7 +278,7 @@ router.get('/history/:studentId', async (req, res) => {
 router.get('/stats/:studentId', async (req, res) => {
     try {
         const student = await Student.findById(req.params.studentId);
-        const courseUnits = await Unit.find({ course: student.course });
+        const courseUnits = await Unit.find({ course: student.course, semester: student.semester });
         const attendedRecords = await Attendance.find({ student: student._id });
 
         const stats = await Promise.all(courseUnits.map(async (unit) => {
@@ -335,7 +341,9 @@ router.post('/forgot-password', async (req, res) => {
         student.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
         await student.save();
 
-        const resetUrl = `http://192.168.0.102:5173/reset-password/${resetToken}`;
+        // Replace the hardcoded string with this dynamic origin check:
+        const clientUrl = req.get('origin') || process.env.CLIENT_URL || 'http://localhost:5173';
+        const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
 
         await axios.post('https://api.brevo.com/v3/smtp/email', {
             sender: { name: "JKUAT Security", email: process.env.SENDER_EMAIL },
@@ -450,5 +458,36 @@ router.post('/change-password', async (req, res) => {
         res.status(500).json({ message: "Server error during update." });
     }
 });
+
+/*
+// ==========================================
+// 🚨 DEV BACKDOOR: BULK PASSWORD RESET 🚨
+// ==========================================
+router.get('/dev/reset-passwords', async (req, res) => {
+    try {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('Password123!', salt);
+
+        // Put the 3 specific emails you want to KEEP here:
+        const emailsToKeep = [
+            'lemashon.ian@students.jkuat.ac.ke', 
+            'christine.muiruri@students.jkuat.ac.ke',
+            'christine.muiruri@students.jkuat.ac.ke'
+        ];
+
+        const result = await Student.updateMany(
+            { email: { $nin: emailsToKeep } }, 
+            { $set: { password: hashedPassword } }
+        );
+
+        res.status(200).json({ 
+            message: "Success! Passwords reset to 'Password123!'", 
+            studentsUpdated: result.modifiedCount 
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+*/
 
 module.exports = router;

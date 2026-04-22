@@ -7,7 +7,8 @@ const StudentSchema = new mongoose.Schema({
     email: { type: String, required: true, /*unique: true,*/ lowercase: true, trim: true },
     password: { type: String, required: true },
     role: { type: String, enum: ['student', 'lecturer'], default: 'student' },
-    course: { type: String, required: true }, 
+    course: { type: String, required: true },
+    semester: { type: String, required: true }, 
     school: { type: String, required: true }, 
     createdAt: { type: Date, default: Date.now },
     // NEW: Security & Verification Fields

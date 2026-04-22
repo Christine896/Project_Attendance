@@ -12,6 +12,8 @@ const AddUnit = () => {
   const [isDayOpen, setIsDayOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSemesterOpen, setIsSemesterOpen] = useState(false);
+  const semesterList = ["Year 4, Sem 1", "Year 4, Sem 2"];
 
   const schoolData = {
     "School of Computing": ["BSc. Software Engineering", "BSc. Computer Science", "BSc. Information Technology"],
@@ -26,6 +28,7 @@ const AddUnit = () => {
     code: '',
     school: '',
     course: '',
+    semster: '',
     day: 'Monday',
     startTime: '',
     endTime: ''
@@ -154,6 +157,28 @@ const AddUnit = () => {
                     <div className="absolute z-50 w-full mt-2 bg-[#111827] border border-white/10 rounded-2xl shadow-2xl max-h-48 overflow-y-auto">
                       {schoolData[formData.school].map(c => (
                         <div key={c} onClick={() => { setFormData({...formData, course: c}); setIsCourseOpen(false); }} className="p-4 hover:bg-blue-600/20 cursor-pointer border-b border-white/5 last:border-0">{c}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Semester Input */}
+                <div className="relative mt-5">
+                  <label className={labelStyles}>Semester</label>
+                  <div onClick={() => setIsSemesterOpen(!isSemesterOpen)} className={`${inputBaseStyles} px-6 relative`}>
+                    <span>{formData.semester || "Select Semester"}</span>
+                    <ChevronDown size={18} className={`text-slate-500 transition-transform ${isSemesterOpen ? 'rotate-180' : ''}`} />
+                  </div>
+                  {isSemesterOpen && (
+                    <div className="absolute z-50 w-full mt-2 bg-[#111827] border border-white/10 rounded-2xl shadow-2xl max-h-48 overflow-y-auto">
+                      {semesterList.map(sem => (
+                        <div 
+                          key={sem} 
+                          onClick={() => { setFormData({...formData, semester: sem}); setIsSemesterOpen(false); }} 
+                          className="p-4 hover:bg-blue-600/20 text-slate-300 font-medium cursor-pointer border-b border-white/5 last:border-0"
+                        >
+                          {sem}
+                        </div>
                       ))}
                     </div>
                   )}

@@ -54,7 +54,10 @@ const Dashboard = () => {
       const allUnits = unitsRes.data || [];
 
       // THE BOUNCER: Only keep units that match the student's exact course
-      const myCourseUnits = allUnits.filter(u => u.course === savedUser.course);
+      const myCourseUnits = allUnits.filter(u => 
+          u.course === savedUser.course && 
+          u.semester === savedUser.semester
+      );
 
       const today = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
       // Forces 24-hour format "HH:MM" (e.g., "08:00") so math works perfectly

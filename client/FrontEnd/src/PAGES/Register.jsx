@@ -13,10 +13,11 @@ const Register = () => {
     regNo: '',
     school: '',
     course: '',
+    semester: '',
     email: '',
     password: ''
   });
-
+  const API_URL = import.meta.env.VITE_API_URL;
   const [error, setError] = useState(""); 
   const [successMsg, setSuccessMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +29,8 @@ const Register = () => {
   const [otpValue, setOtpValue] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
+  const [isSemesterOpen, setIsSemesterOpen] = useState(false);
+  const semesterList = ["Year 4, Sem 1", "Year 4, Sem 2"];
 
   useEffect(() => {
       const verifying = localStorage.getItem('isVerifying');
@@ -84,7 +87,7 @@ const Register = () => {
     setOtpValue("");
     
     try {
-      await fetch('http://192.168.0.102:5000/api/auth/register', {
+      await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -129,6 +132,11 @@ const Register = () => {
       return;
     }
 
+    if (!formData.school || !formData.course || !formData.semester) {
+    setError("Please select your school, course, and semester.");
+    return;
+    }
+
     if (!formData.school || !formData.course) {
       setError("Please select both your school and course.");
       return;
@@ -137,7 +145,7 @@ const Register = () => {
     try {
       setIsLoading(true);
       // Replace the old fetch with this:
-      const res = await fetch('http://192.168.0.102:5000/api/auth/register', {
+      const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -171,7 +179,7 @@ const Register = () => {
       try {
           setIsVerifying(true);
           // Replace the old fetch with this:
-         const res = await fetch('http://192.168.0.102:5000/api/auth/verify-otp', {
+         const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ regNo: formData.regNo, otp: otpValue })
@@ -338,6 +346,28 @@ const Register = () => {
                             <div key={course} onClick={() => handleCourseSelect(course)}
                                 className="p-4 hover:bg-indigo-50 text-slate-700 font-medium cursor-pointer transition-colors border-b border-slate-50 last:border-0">
                                 {course}
+                            </div>
+                        ))}
+                    </div>
+                )}
+              </div>
+
+              {/* Semester Input */}
+              <div className="space-y-1.5 relative">
+                <label className={labelStyles}>Semester</label>
+                <div onClick={() => setIsSemesterOpen(!isSemesterOpen)} className={inputBaseStyles}>
+                    <GraduationCap className="absolute left-4 text-slate-500" size={20} />
+                    <span className={formData.semester ? "text-slate-900" : "text-slate-400 text-sm"}>
+                        {formData.semester || "Select Semester"}
+                    </span>
+                    <ChevronDown className={`text-slate-400 transition-transform ${isSemesterOpen ? 'rotate-180' : ''}`} size={18} />
+                </div>
+                {isSemesterOpen && (
+                    <div className={dropdownMenuStyles}>
+                        {semesterList.map((sem) => (
+                            <div key={sem} onClick={() => { setFormData({...formData, semester: sem}); setIsSemesterOpen(false); setError(""); }}
+                                className="p-4 hover:bg-indigo-50 text-slate-700 font-medium cursor-pointer transition-colors border-b border-slate-50 last:border-0">
+                                {sem}
                             </div>
                         ))}
                     </div>

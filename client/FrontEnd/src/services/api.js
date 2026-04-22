@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Force port 5000, ignoring Vite's broken environment variables
 const API = axios.create({ 
-  baseURL: 'http://192.168.0.102:5000' 
+  baseURL: import.meta.env.VITE_API_URL 
 });
 
 API.interceptors.request.use((req) => {
