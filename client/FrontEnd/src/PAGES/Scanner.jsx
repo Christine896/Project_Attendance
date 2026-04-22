@@ -24,6 +24,7 @@ const Scanner = () => {
   const [scanStatus, setScanStatus] = useState("success"); 
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(""); 
+  const [zoomLevel, setZoomLevel] = useState(1); // Default to 1x
 
   // The 3-second timer for the error/duplicate screen
   useEffect(() => {
@@ -35,33 +36,29 @@ const Scanner = () => {
     }
   }, [stopStream, scanStatus, navigate]);
 
-  // --- NEW: AUTO-ZOOM API (Telescopic Scanner) ---
+  // --- UPDATED: MANUAL ZOOM CONTROL ---
   useEffect(() => {
-    let zoomInterval;
-    if (!stopStream) {
-      zoomInterval = setInterval(async () => {
-        try {
-          const video = document.querySelector('video');
-          if (video && video.srcObject) {
-            const track = video.srcObject.getVideoTracks()[0];
-            const capabilities = track.getCapabilities();
-            
-            // If the phone hardware supports zoom, apply it!
-            if (capabilities.zoom) {
-              const maxZoom = capabilities.zoom.max;
-              const targetZoom = Math.min(3.5, maxZoom); // 2.5x zoom is the sweet spot
-              await track.applyConstraints({ advanced: [{ zoom: targetZoom }] });
-              clearInterval(zoomInterval); // Stop polling once zoom is applied
-            }
+    const applyZoom = async () => {
+      try {
+        const video = document.querySelector('video');
+        if (video && video.srcObject) {
+          const track = video.srcObject.getVideoTracks()[0];
+          const capabilities = track.getCapabilities();
+          
+          if (capabilities.zoom) {
+            const min = capabilities.zoom.min || 1;
+            const max = capabilities.zoom.max || 4;
+            // Clamp the value between hardware limits
+            const clampedZoom = Math.max(min, Math.min(zoomLevel, max));
+            await track.applyConstraints({ advanced: [{ zoom: clampedZoom }] });
           }
-        } catch (err) {
-          // Fails silently on older phones that don't have zoom API
-          clearInterval(zoomInterval);
         }
-      }, 500);
-    }
-    return () => clearInterval(zoomInterval);
-  }, [stopStream]);
+      } catch (err) {
+        console.warn("Zoom not supported on this device/browser");
+      }
+    };
+    applyZoom();
+  }, [zoomLevel, stopStream]);
 
   const handleScan = async (err, result) => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -187,11 +184,12 @@ const Scanner = () => {
       {/* MAIN CONTAINER */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 relative z-20">
         
+        {/* THE FRAME: Lifted and Centered */}
         <div className="relative w-full aspect-square max-w-[345px] -mt-24">
-          <div className="absolute top-0 left-0 w-12 h-12 border-t-[2.5px] border-l-[2.5px] border-[#6366F1] rounded-tl-3xl z-30 pointer-events-none shadow-[-2px_-2px_8px_rgba(99,102,241,0.3)]" />
-          <div className="absolute top-0 right-0 w-12 h-12 border-t-[2.5px] border-r-[2.5px] border-[#6366F1] rounded-tr-3xl z-30 pointer-events-none shadow-[2px_-2px_8px_rgba(99,102,241,0.3)]" />
-          <div className="absolute bottom-0 left-0 w-12 h-12 border-b-[2.5px] border-l-[2.5px] border-[#6366F1] rounded-bl-3xl z-30 pointer-events-none shadow-[-2px_2px_8px_rgba(99,102,241,0.3)]" />
-          <div className="absolute bottom-0 right-0 w-12 h-12 border-b-[2.5px] border-r-[2.5px] border-[#6366F1] rounded-br-3xl z-30 pointer-events-none shadow-[2px_2px_10px_rgba(99,102,241,0.3)]" />
+          <div className="absolute top-0 left-0 w-12 h-12 border-t-[2.5px] border-l-[2.5px] border-[#6366F1] rounded-tl-3xl z-30 pointer-events-none" />
+          <div className="absolute top-0 right-0 w-12 h-12 border-t-[2.5px] border-r-[2.5px] border-[#6366F1] rounded-tr-3xl z-30 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-12 h-12 border-b-[2.5px] border-l-[2.5px] border-[#6366F1] rounded-bl-3xl z-30 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-12 h-12 border-b-[2.5px] border-r-[2.5px] border-[#6366F1] rounded-br-3xl z-30 pointer-events-none" />
 
           <div className="absolute inset-4 bg-black rounded-[32px] border border-white/40 overflow-hidden shadow-2xl flex items-center justify-center">
              {!stopStream ? (
@@ -231,43 +229,51 @@ const Scanner = () => {
           </div>
         </div>
 
-        {/* HELPER TEXT - Only shows if there is NO error overlay */}
-        {!(stopStream && scanStatus === 'error') ? (
-          <div className="mt-20 text-center px-6 relative z-50">
-            <p className="text-indigo-950/60 text-base font-medium leading-relaxed">
-              {getHelperText()}
-            </p>
+        {/* ZOOM SLIDER: In the space below the frame */}
+        {!stopStream && !isProcessing && (
+          <div className="mt-12 w-full max-w-[280px] flex flex-col items-center gap-6 relative z-50">
+            <div className="w-full flex items-center gap-4 bg-white/20 backdrop-blur-md px-5 py-4 rounded-2xl border border-white/30 shadow-xl">
+              <span className="text-[10px] font-black text-indigo-950/60">1x</span>
+              <input 
+                type="range"
+                min="1"
+                max="4"
+                step="0.1"
+                value={zoomLevel}
+                onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
+                className="flex-1 h-1 bg-indigo-950/10 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <span className="text-[10px] font-black text-indigo-900">{zoomLevel}x</span>
+            </div>
+            <p className="text-indigo-950/60 text-base font-medium">{getHelperText()}</p>
           </div>
-        ) : null}
-      </div>
+        )}
+      </div> {/* Closes Main Content Container */}
 
-      {/* FOOTER */}
-      <div className="pb-6 flex flex-col items-center gap-1.5 opacity-40 relative z-20">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={12} className="text-indigo-950" />
-          <span className="text-indigo-950 text-[9px] font-black uppercase tracking-[0.3em]">GPS Geofence Active</span>
-        </div>
-      </div>
-
-      {/* 1. SUCCESS OVERLAY */}
+      {/* OVERLAYS & FOOTER */}
       {stopStream && scanStatus === 'success' && (
         <SuccessOverlay 
           unitName={scannedData?.unitName} 
           unitCode={scannedData?.unitCode} 
           status={scanStatus}
-          message={errorMessage} 
           onComplete={() => navigate('/dashboard')} 
         />
       )}
 
-      {/* 2. DUPLICATE / ERROR FULL-SCREEN PAGE */}
       {stopStream && scanStatus === 'error' && (
-        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-[#7DD3FC] via-[#CBD5E1] to-[#A5B4FC] flex items-center justify-center p-10 animate-in fade-in zoom-in-95 duration-500">
-          <p className="text-3xl font-black text-center leading-snug tracking-tight bg-gradient-to-br from-indigo-600 to-purple-600 bg-clip-text text-transparent drop-shadow-sm">
+        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-[#7DD3FC] via-[#CBD5E1] to-[#A5B4FC] flex items-center justify-center p-10 animate-in fade-in">
+          <p className="text-3xl font-black text-center text-indigo-900 leading-tight">
             {errorMessage}
           </p>
         </div>
       )}
+
+      <div className="pb-8 mt-auto flex flex-col items-center gap-1.5 opacity-40 relative z-20">
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={12} className="text-indigo-950" />
+          <span className="text-indigo-950 text-[9px] font-black uppercase tracking-[0.3em]">GPS Geofence Active</span>
+        </div>
+      </div>
 
       <style>
         {`
@@ -282,7 +288,7 @@ const Scanner = () => {
           }
         `}
       </style>
-    </div>
+    </div> // Closes the Main Wrapper
   );
 };
 
