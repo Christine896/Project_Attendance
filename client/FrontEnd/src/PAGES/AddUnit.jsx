@@ -96,8 +96,7 @@ const AddUnit = () => {
   const inputBaseStyles = "w-full p-4 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 outline-none text-white font-medium focus:border-blue-500/50 transition-all cursor-pointer flex items-center justify-between shadow-lg";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#2e6ff2] via-[#111827] to-[#020617] text-white flex flex-col font-sans items-center justify-center relative overflow-hidden">
-      
+    <div className="min-h-screen bg-gradient-to-b from-[#2563EB] via-[#111827] to-[#020617] text-white flex flex-col font-sans p-6 relative overflow-hidden">
       {isSuccess ? (
         /* MINTY SUCCESS SCREEN */
         <div className="flex flex-col items-center justify-center text-center z-50">
@@ -120,7 +119,7 @@ const AddUnit = () => {
             >
               <ChevronLeft size={20} />
             </button>
-            <h1 className="text-2xl font-black uppercase tracking-[0.2em]">Add <span className="text-blue-400">Unit</span></h1>
+            <h1 className="text-2xl font-black uppercase tracking-[0.2em]">Add Unit </h1>
             <div className="w-10" />
           </div>
 

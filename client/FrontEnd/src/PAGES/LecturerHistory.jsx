@@ -1,3 +1,4 @@
+//lecturer history reports
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -96,7 +97,7 @@ const LecturerHistory = () => {
     document.body.removeChild(link);
   };
 
-  const labelStyles = "text-[10px] font-black text-blue-400 uppercase tracking-widest ml-4 mb-2 block";
+  const labelStyles = "text-sm font-black text-white uppercase tracking-widest ml-4 mb-2 block";
   const inputBaseStyles = "w-full p-4 pl-12 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 outline-none text-white font-bold cursor-pointer flex items-center justify-between transition-all hover:bg-white/15 shadow-sm";
   const dropdownMenuStyles = "absolute z-50 w-full mt-2 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200";
   const optionStyles = "p-4 hover:bg-blue-600 text-white font-medium cursor-pointer transition-colors border-b border-white/5 last:border-0 text-sm";
@@ -110,7 +111,7 @@ const LecturerHistory = () => {
         <button onClick={() => navigate('/lecturer-dashboard')} className="p-3 bg-white/5 backdrop-blur-3xl rounded-2xl border border-white/10 active:scale-95 shadow-xl">
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-2xl font-black uppercase tracking-widest text-white italic">History Reports</h1>
+        <h1 className="text-2xl font-black uppercase tracking-widest text-white italic">Attendance History</h1>
         <button onClick={handleDownload} className="p-3 bg-blue-600 rounded-2xl shadow-lg active:scale-95">
           <Download size={24} />
         </button>
@@ -174,9 +175,15 @@ const LecturerHistory = () => {
         </div>
       </div>
 
+      {/* SEARCH BAR */}
       <div className="relative z-10 mb-6 h-14">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-white/50" size={20} />
-        <input type="text" placeholder="Search student or ID..." className="w-full h-full bg-white/5 border border-white/10 backdrop-blur-3xl rounded-2xl pl-14 pr-4 text-sm font-bold text-white outline-none focus:border-blue-400 transition-all" onChange={(e) => setSearchTerm(e.target.value)} />
+        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-white/50 z-10 pointer-events-none" size={20} />
+        <input 
+          type="text" 
+          placeholder="Search student or ID..." 
+          className="w-full h-full bg-white/5 border border-white/10 backdrop-blur-3xl rounded-2xl pl-14 pr-4 text-sm font-bold text-white outline-none focus:border-blue-400 transition-all relative z-0"
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col space-y-3 overflow-y-auto pr-1 pb-10">

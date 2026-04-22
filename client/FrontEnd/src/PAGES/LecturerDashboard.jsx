@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, LogOut, RotateCcw, Clock, ShieldCheck, 
-  Loader2, BookOpen, Hash, QrCode, History 
+  Loader2, BookOpen, Hash, QrCode, History as HistoryIcon 
 } from 'lucide-react';
 import { getLecturerUnits, incrementUnitSession } from '../services/api'; 
 
@@ -21,6 +21,7 @@ const LecturerDashboard = () => {
   const [location, setLocation] = useState({ lat: null, lng: null });
   const [isCapturing, setIsCapturing] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  const [totalExpected, setTotalExpected] = useState(0);
 
   const timerRef = useRef(null);
 
@@ -62,6 +63,20 @@ const LecturerDashboard = () => {
     };
     fetchUnits();
   }, [user._id]);
+
+  // --- NEW: FETCH TOTAL ENROLLED FOR STAT CARDS ---
+  useEffect(() => {
+    if (showQR && selectedUnit) {
+      const fetchTotal = async () => {
+        try {
+           const expectedRes = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/expected-students/${selectedUnit.course}/${selectedUnit.semester}`);
+           const expectedData = await expectedRes.json();
+           setTotalExpected(expectedData.length || 0);
+        } catch(e) { console.error("Failed to fetch expected count", e); }
+      }
+      fetchTotal();
+    }
+  }, [showQR, selectedUnit]);
 
   useEffect(() => {
     let pollInterval;
@@ -161,7 +176,6 @@ const LecturerDashboard = () => {
         } catch (err) {
             console.error("Failed to anchor session to backend", err);
         }
-        // ------------------------------------------
 
         setSessionId(newSessionId);
         setLocation(coords);
@@ -185,7 +199,7 @@ const LecturerDashboard = () => {
         setIsCapturing(false);
         alert(`GPS Error: ${error.message}. Try moving near a window or using a hotspot.`);
       },
-      { enableHighAccuracy: false, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
@@ -210,39 +224,39 @@ const LecturerDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-b from-[#2563EB] via-[#111827] to-[#020617] text-white font-sans overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-[#2563EB] via-[#111827] to-[#020617] text-white flex flex-col font-sans relative overflow-hidden md:flex-row">
       <div className="absolute inset-0 bg-black/20 pointer-events-none" />
 
-      {/* NEW SIDEBAR / NAVIGATION RAIL */}
-      <div className="relative z-20 w-64 bg-white/5 border-r border-white/10 flex-col p-6 backdrop-blur-3xl hidden md:flex shadow-2xl">
-        <div className="flex items-center gap-3 mb-16 mt-4">
+      {/* SLEEK SIDEBAR / NAVIGATION RAIL */}
+      <div className="relative z-20 w-64 bg-white/5 border-r border-white/10 flex-col p-6 backdrop-blur-3xl hidden md:flex shadow-2xl shrink-0">
+        <div className="flex items-center gap-3 mb-12 mt-4">
           <ShieldCheck className="text-blue-400 shrink-0" size={36} />
           <h1 className="text-xl font-black uppercase tracking-widest italic leading-tight text-white">
             Lecturer <br/><span className="text-blue-500">Console</span>
           </h1>
         </div>
         
-        <div className="flex flex-col gap-4 flex-1">
-          <button onClick={() => navigate('/add-unit')} className="flex items-center gap-4 px-5 py-4 bg-white/5 rounded-2xl border border-white/10 text-sm font-bold uppercase hover:bg-white/10 hover:border-blue-500/50 transition-all text-left">
-            <BookOpen size={20} className="text-blue-400" /> Add Unit
+        <div className="flex flex-col gap-2 flex-1">
+          {/* ACTIVE PAGE */}
+          <button onClick={() => navigate('/lecturer-dashboard')} className="flex items-center gap-4 px-5 py-4 bg-blue-600 rounded-2xl text-sm font-bold uppercase text-white shadow-lg shadow-blue-600/20 text-left transition-all">
+            <QrCode size={20} /> Generate QR
           </button>
           
-          <button onClick={() => navigate('/class-list')} className="flex items-center gap-4 px-5 py-4 bg-white/5 rounded-2xl border border-white/10 text-sm font-bold uppercase hover:bg-white/10 hover:border-blue-500/50 transition-all text-left">
-            <Users size={20} className="text-emerald-400" /> Class List
+          {/* INACTIVE PAGES */}
+          <button onClick={() => navigate('/add-unit')} className="flex items-center gap-4 px-5 py-4 bg-transparent rounded-2xl text-sm font-bold uppercase text-white/50 hover:text-white hover:bg-white/5 transition-all text-left">
+            <BookOpen size={20} /> Add Unit
+          </button>
+          
+          <button onClick={() => navigate('/class-list')} className="flex items-center gap-4 px-5 py-4 bg-transparent rounded-2xl text-sm font-bold uppercase text-white/50 hover:text-white hover:bg-white/5 transition-all text-left">
+            <Users size={20} /> Attendance
           </button>
 
-          {/* HISTORY REPORTS CARD */}
-        <button 
-            onClick={() => navigate('/lecturer-history')} 
-            className="flex items-center gap-4 px-5 py-4 bg-white/5 rounded-2xl border border-white/10 text-sm font-bold uppercase hover:bg-white/10 hover:border-blue-500/50 transition-all text-left group"
-          >
-            <History size={20} className="text-purple-400 group-hover:scale-110 transition-transform" /> 
-            <span>View History</span>
+          <button onClick={() => navigate('/lecturer-history')} className="flex items-center gap-4 px-5 py-4 bg-transparent rounded-2xl text-sm font-bold uppercase text-white/50 hover:text-white hover:bg-white/5 transition-all text-left">
+            <HistoryIcon size={20} /> View History
           </button>
-
         </div>
 
-        <button onClick={() => { localStorage.removeItem('user'); navigate('/login'); }} className="flex items-center gap-4 px-5 py-4 bg-rose-500/10 text-rose-400 rounded-2xl border border-rose-500/20 hover:bg-rose-500/20 transition-all text-sm font-bold uppercase text-left">
+        <button onClick={() => { localStorage.removeItem('user'); navigate('/login'); }} className="flex items-center gap-4 px-5 py-4 mt-auto bg-rose-500/10 text-rose-400 rounded-2xl hover:bg-rose-500/20 transition-all text-sm font-bold uppercase text-left">
           <LogOut size={20} /> Logout
         </button>
       </div>
@@ -258,7 +272,7 @@ const LecturerDashboard = () => {
 
       {/* MAIN CONTENT AREA */}
       <div className="relative z-10 flex-1 flex items-center justify-center p-6 overflow-y-auto">
-        <div className="max-w-xl w-full">
+        <div className={`w-full transition-all duration-700 ${!showQR ? 'max-w-xl' : 'max-w-[1100px]'}`}>
           {!showQR ? ( 
             /* FORM VIEW */
             <div className="bg-white/5 backdrop-blur-3xl p-10 rounded-[40px] border border-white/10 shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-8">
@@ -310,24 +324,13 @@ const LecturerDashboard = () => {
               </div>
             </div>
           ) : (
-            /* QR VIEW WITH TIMER */
-            <div className="flex flex-col items-center animate-in zoom-in duration-700">
-              <div className="flex gap-4 mb-8">
-                <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-3 flex items-center gap-3 backdrop-blur-md">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-black uppercase tracking-widest">{scannedCount} present </span>
-                </div>
-                
-                <div className={`bg-white/5 border rounded-2xl px-6 py-3 flex items-center gap-3 backdrop-blur-md ${timeLeft < 60 ? 'border-rose-500/50 bg-rose-500/5' : 'border-white/10'}`}>
-                  <Clock size={16} className={timeLeft < 60 ? 'text-rose-400' : 'text-blue-400'} />
-                  <span className={`text-xs font-black uppercase tracking-widest ${timeLeft < 60 ? 'text-rose-400 font-bold' : 'text-white'}`}>
-                    {formatTime(timeLeft)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-white p-10 rounded-[4rem] shadow-2xl mb-12 relative">
-                <QRCodeSVG 
+            /* QR PRESENTATION MODE (SPLIT LAYOUT) */
+            <div className="flex flex-col lg:flex-row w-full items-center justify-between gap-12 animate-in fade-in zoom-in-95 duration-700 bg-transparent">
+              
+              {/* LEFT SIDE: MASSIVE QR CODE (Increased by 10% to 550px) */}
+              <div className="flex-1 flex justify-center items-center">
+                <div className="bg-white p-6 rounded-[3rem] shadow-[0_0_80px_rgba(255,255,255,0.1)]">
+                  <QRCodeSVG 
                     value={JSON.stringify({ 
                       unitId: selectedUnit?._id, 
                       code: selectedUnit?.unitCode || selectedUnit?.code, 
@@ -337,13 +340,57 @@ const LecturerDashboard = () => {
                       lat: location.lat, 
                       lng: location.lng 
                     })}
-                    size={320}
+                    size={600} 
+                    level="L" 
+                    includeMargin={true} 
                   />
+                </div>
               </div>
-              
-              <button onClick={handleReset} className="group flex items-center gap-2 px-10 py-5 bg-rose-500/10 text-rose-400 font-bold rounded-2xl border border-rose-500/20 hover:bg-rose-500/20 transition-all uppercase tracking-widest text-xs">
-                <RotateCcw size={18} className="group-hover:-rotate-180 transition-all duration-500" /> End Session
-              </button>
+
+              {/* RIGHT SIDE: TEXT & STATS DASHBOARD */}
+              <div className="w-full lg:w-[380px] flex flex-col gap-5 shrink-0">
+                
+                {/* 1. TIMER */}
+                <div className={`border rounded-[2rem] p-8 flex flex-col items-center justify-center backdrop-blur-md transition-all ${timeLeft < 60 ? 'border-rose-500/50 bg-rose-500/10 shadow-[0_0_30px_rgba(244,63,94,0.2)]' : 'border-white/10 bg-white/5'}`}>
+                  <span className="text-white/40 text-xs font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                    <Clock size={16} className={timeLeft < 60 ? 'text-rose-400 animate-pulse' : 'text-blue-400'} /> Time Remaining
+                  </span>
+                  <span className={`text-6xl font-black tracking-widest ${timeLeft < 60 ? 'text-rose-400' : 'text-white'}`}>
+                    {formatTime(timeLeft)}
+                  </span>
+                </div>
+
+                {/* 2. STAT CARDS */}
+                <div className="grid grid-cols-2 gap-4">
+                  
+                  {/* ENROLLED: Big, On Top (col-span-2) */}
+                  <div className="col-span-2 bg-white/5 border border-white/10 rounded-3xl p-6 flex flex-col items-center justify-center backdrop-blur-xl">
+                    <span className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Enrolled</span>
+                    <span className="text-5xl font-black text-white">{totalExpected}</span>
+                  </div>
+
+                  {/* PRESENT: Bottom Left (No top line, larger text) */}
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-3xl p-6 flex flex-col items-center justify-center backdrop-blur-xl">
+                    <span className="text-emerald-400 text-sm font-black uppercase tracking-[0.2em] mb-1">Present</span>
+                    <span className="text-4xl font-black text-emerald-400">{scannedCount}</span>
+                  </div>
+
+                  {/* ABSENT: Bottom Right (Larger text to match Present) */}
+                  <div className="bg-rose-500/5 border border-rose-500/10 rounded-3xl p-6 flex flex-col items-center justify-center backdrop-blur-xl">
+                    <span className="text-rose-400/80 text-sm font-black uppercase tracking-[0.2em] mb-1">Absent</span>
+                    <span className="text-4xl font-black text-rose-400">
+                      {totalExpected > 0 ? Math.max(0, totalExpected - scannedCount) : 0}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3. END SESSION BUTTON */}
+                <button onClick={handleReset} className="group mt-2 flex items-center justify-center gap-3 w-full py-5 bg-white/5 text-white/60 font-bold rounded-2xl border border-white/10 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 transition-all uppercase tracking-widest text-sm">
+                  <RotateCcw size={20} className="group-hover:-rotate-180 transition-all duration-500" /> End Session
+                </button>
+                
+              </div>
+
             </div>
           )}
         </div>

@@ -35,6 +35,34 @@ const Scanner = () => {
     }
   }, [stopStream, scanStatus, navigate]);
 
+  // --- NEW: AUTO-ZOOM API (Telescopic Scanner) ---
+  useEffect(() => {
+    let zoomInterval;
+    if (!stopStream) {
+      zoomInterval = setInterval(async () => {
+        try {
+          const video = document.querySelector('video');
+          if (video && video.srcObject) {
+            const track = video.srcObject.getVideoTracks()[0];
+            const capabilities = track.getCapabilities();
+            
+            // If the phone hardware supports zoom, apply it!
+            if (capabilities.zoom) {
+              const maxZoom = capabilities.zoom.max;
+              const targetZoom = Math.min(3.5, maxZoom); // 2.5x zoom is the sweet spot
+              await track.applyConstraints({ advanced: [{ zoom: targetZoom }] });
+              clearInterval(zoomInterval); // Stop polling once zoom is applied
+            }
+          }
+        } catch (err) {
+          // Fails silently on older phones that don't have zoom API
+          clearInterval(zoomInterval);
+        }
+      }, 500);
+    }
+    return () => clearInterval(zoomInterval);
+  }, [stopStream]);
+
   const handleScan = async (err, result) => {
     const user = JSON.parse(localStorage.getItem('user'));
 
@@ -171,6 +199,11 @@ const Scanner = () => {
                   <BarcodeScannerComponent
                     width="100%"
                     height="100%"
+                    videoConstraints={{ 
+                      facingMode: 'environment', 
+                      width: { ideal: 1920 }, 
+                      height: { ideal: 1080 } 
+                    }}
                     onUpdate={handleScan}
                     onError={() => setHasError(true)}
                   />

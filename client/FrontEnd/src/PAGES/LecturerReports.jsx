@@ -1,7 +1,8 @@
+//lecturer attendance
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ChevronLeft, Download, Search, CheckCircle2, 
+  ChevronLeft, Download, Search, CheckCircle2, ShieldCheck, QrCode, LogOut,
   User, Users, FileSpreadsheet, Loader2, UserMinus, UserPlus 
 } from 'lucide-react';
 
@@ -187,7 +188,7 @@ const LecturerReports = () => {
   const presentCount = combinedList.filter(s => s.isPresent).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#2563EB] via-[#111827] to-[#020617] text-white flex flex-col font-sans p-6 relative">
+    <div className="min-h-screen bg-gradient-to-b from-[#2563EB] via-[#111827] to-[#020617] text-white flex flex-col font-sans p-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-black/20 pointer-events-none" />
 
       {/* HEADER */}
@@ -202,32 +203,34 @@ const LecturerReports = () => {
       </div>
 
 
-      {/* STATS TABS */}
-      <div className="relative z-10 flex gap-3 mb-8">
-        <div className="flex-1 py-4 bg-white/10 border border-white/20 rounded-2xl backdrop-blur-3xl flex flex-col items-center justify-center shadow-lg">
-          <p className="text-[10px] font-black uppercase text-blue-300">Enrolled</p>
-          <p className="text-xl font-black">{expectedStudents.length}</p>
+      {/* STATS TABS (Horizontal Word: Number) */}
+      <div className="relative z-10 flex gap-4 mb-8">
+        <div className="flex-1 py-4 px-6 bg-white/10 border border-white/20 rounded-2xl backdrop-blur-3xl flex items-center justify-between shadow-lg">
+          <span className="text-[15px] font-black uppercase tracking-widest text-blue-300">Enrolled:</span>
+          <span className="text-2xl font-black">{expectedStudents.length}</span>
         </div>
-        <div className="flex-1 py-4 bg-white/10 border border-emerald-500/30 rounded-2xl backdrop-blur-3xl flex flex-col items-center justify-center shadow-lg">
-          <p className="text-[10px] font-black uppercase text-emerald-400">Present</p>
-          <p className="text-xl font-black">{presentCount}</p>
+        
+        <div className="flex-1 py-4 px-6 bg-white/10 border border-emerald-500/30 rounded-2xl backdrop-blur-3xl flex items-center justify-between shadow-lg shadow-emerald-500/5">
+          <span className="text-[15px] font-black uppercase tracking-widest text-emerald-400">Present:</span>
+          <span className="text-2xl font-black text-emerald-400">{presentCount}</span>
         </div>
-        <div className="flex-1 py-4 bg-white/10 border border-rose-500/30 rounded-2xl backdrop-blur-3xl flex flex-col items-center justify-center shadow-lg">
-          <p className="text-[10px] font-black uppercase text-rose-400">Absent</p>
-          <p className="text-xl font-black">{expectedStudents.length - presentCount}</p>
+        
+        <div className="flex-1 py-4 px-6 bg-white/10 border border-rose-500/30 rounded-2xl backdrop-blur-3xl flex items-center justify-between shadow-lg shadow-rose-500/5">
+          <span className="text-[15px] font-black uppercase tracking-widest text-rose-400">Absent:</span>
+          <span className="text-2xl font-black text-rose-400">{expectedStudents.length - presentCount}</span>
         </div>
       </div>
 
-      {/* SEARCH */}
-      <div className="relative z-10 mb-6 h-14">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-white/50" size={20} />
-        <input 
-          type="text" 
-          placeholder="Search name or ID..." 
-          className="w-full h-full bg-white/5 border border-white/10 backdrop-blur-3xl rounded-2xl pl-14 pr-4 text-sm font-bold text-white outline-none focus:border-blue-400 transition-all"
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      {/* SEARCH BAR */}
+            <div className="relative z-10 mb-6 h-14">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-white/50 z-10 pointer-events-none" size={20} />
+              <input 
+                type="text" 
+                placeholder="Search student or ID..." 
+                className="w-full h-full bg-white/5 border border-white/10 backdrop-blur-3xl rounded-2xl pl-14 pr-4 text-sm font-bold text-white outline-none focus:border-blue-400 transition-all relative z-0"
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
 
       {/* LIVE LIST: VERTICAL COLUMNS LAYOUT */}
       <div className="relative z-10 flex-1 flex flex-col space-y-2.5 overflow-y-auto pr-1 pb-10">
@@ -244,7 +247,7 @@ const LecturerReports = () => {
             }`}
           >
             <div className="w-[180px] shrink-0 flex items-center justify-center bg-black/40">
-              <span className="text-[14px] font-bold text-white font-mono uppercase">{student.regNo}</span>
+              <span className="text-[15px] font-bold text-white font-mono uppercase">{student.regNo}</span>
             </div>
 
             <div className="w-px bg-white/10" /><div className="w-6" />
@@ -255,10 +258,10 @@ const LecturerReports = () => {
                 {student.isPresent ? (
                   <>
                     <CheckCircle2 size={18} className="text-emerald-400" />
-                    <p className="text-[8px] font-bold text-emerald-400/60 mt-0.5">{student.time || "MANUAL"}</p>
+                    <p className="text-[10px] font-bold text-emerald-400/60 mt-0.5">{student.time || "MANUAL"}</p>
                   </>
                 ) : (
-                  <span className="text-[9px] font-bold uppercase text-white/20 tracking-[0.2em]">Absent</span>
+                  <span className="text-[11px] font-bold uppercase text-white/20 tracking-[0.2em]">Absent</span>
                 )}
               </div>
             </div>
