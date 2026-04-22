@@ -85,8 +85,46 @@ const LecturerReports = () => {
   }, []);
 
   const handleDownload = () => {
-    alert("CSV Download logic remains unchanged.");
+    if (combinedList.length === 0) {
+      alert("No data available to download.");
+      return;
+    }
+
+    // 1. Setup the CSV Headers
+    const headers = ["Registration Number,Name,Status,Time Scanned"];
+
+    // 2. Map the UI data into CSV rows
+    const csvData = combinedList.map(student => {
+      const status = student.isPresent ? "Present" : "Absent";
+      const time = student.time || "N/A";
+      return `"${student.regNo}","${student.name}","${status}","${time}"`;
+    });
+
+    // 3. Combine headers and rows into one file string
+    const csvString = [headers, ...csvData].join("\n");
+
+    // 4. Create a Blob (The actual file)
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    
+    // 5. Generate a smart filename based on the current session
+    const activeSessionString = localStorage.getItem('activeSession');
+    const lastSessionString = localStorage.getItem('lastSession');
+    const targetSession = activeSessionString ? JSON.parse(activeSessionString) : (lastSessionString ? JSON.parse(lastSessionString) : null);
+    
+    const unitCode = targetSession ? (targetSession.unit.unitCode || targetSession.unit.code) : "Class";
+    const date = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    const fileName = `${unitCode}_Attendance_${date}.csv`;
+
+    // 6. Trigger the invisible download link
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
+
 
   const handleToggleAttendance = async (studentId, isCurrentlyPresent) => {
     const activeSessionString = localStorage.getItem('activeSession');
@@ -163,6 +201,7 @@ const LecturerReports = () => {
         </button>
       </div>
 
+
       {/* STATS TABS */}
       <div className="relative z-10 flex gap-3 mb-8">
         <div className="flex-1 py-4 bg-white/10 border border-white/20 rounded-2xl backdrop-blur-3xl flex flex-col items-center justify-center shadow-lg">
@@ -200,71 +239,42 @@ const LecturerReports = () => {
             <p className="font-black uppercase tracking-widest">No Active Session</p>
           </div>
         ) : filteredData.map((student) => (
-          <div 
-            key={student.id} 
-            /* items-stretch forces the vertical divider to go top-to-bottom */
-            className={`flex items-stretch rounded-2xl border transition-all duration-300 overflow-hidden ${
-              student.isPresent ? 'bg-emerald-500/10 border-emerald-500/30 shadow-emerald-500/5' : 'bg-white/5 border-white/10 opacity-80 hover:opacity-100'
+          <div key={student.id} className={`flex items-stretch rounded-2xl border mb-3 h-[68px] overflow-hidden transition-all ${
+              student.isPresent ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/10'
             }`}
           >
-            {/* LEFT CELL: The Long Rectangle (Identity ends with Status) */}
-            <div className="flex-1 flex items-center justify-between p-3 pr-5">
-              
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center border ${
-                  student.isPresent ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-white/5 border-white/10 text-white/40'
-                }`}>
-                  <User size={18} />
-                </div>
-                <div className="flex flex-col justify-center truncate">
-                  <p className={`text-sm font-bold tracking-tight truncate ${student.isPresent ? 'text-white' : 'text-white/70'}`}>
-                    {student.name}
-                  </p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-1 truncate">
-                    {student.regNo}
-                  </p>
-                </div>
-              </div>
+            <div className="w-[180px] shrink-0 flex items-center justify-center bg-black/40">
+              <span className="text-[14px] font-bold text-white font-mono uppercase">{student.regNo}</span>
+            </div>
 
-              {/* Status sits at the far right of this rectangle */}
-              <div className="flex flex-col items-end justify-center ml-2">
-                 {student.isPresent ? (
-                   <>
-                     <CheckCircle2 size={18} className="text-emerald-400" />
-                     <p className="text-[8px] font-black text-emerald-400/60 mt-0.5 whitespace-nowrap">{student.time || "MANUAL"}</p>
-                   </>
-                 ) : (
-                   <span className="text-[10px] font-black uppercase text-white/30 tracking-widest">
-                     Absent
-                   </span>
-                 )}
+            <div className="w-px bg-white/10" /><div className="w-6" />
+
+            <div className="flex-1 flex items-center pr-6 justify-between overflow-hidden">
+              <span className="text-sm font-medium text-white/80 uppercase truncate">{student.name}</span>
+              <div className="flex flex-col items-end shrink-0">
+                {student.isPresent ? (
+                  <>
+                    <CheckCircle2 size={18} className="text-emerald-400" />
+                    <p className="text-[8px] font-bold text-emerald-400/60 mt-0.5">{student.time || "MANUAL"}</p>
+                  </>
+                ) : (
+                  <span className="text-[9px] font-bold uppercase text-white/20 tracking-[0.2em]">Absent</span>
+                )}
               </div>
             </div>
 
-            {/* THE VERTICAL DIVISION: Top-to-bottom line */}
-            <div className={`w-px ${student.isPresent ? 'bg-emerald-500/20' : 'bg-white/10'}`} />
+            <div className="w-px bg-white/10" />
 
-            {/* RIGHT CELL: The Action Column */}
-            <div className="w-16 shrink-0 flex items-center justify-center bg-black/10">
-               {student.isPresent ? (
-                 <button 
-                   onClick={() => handleToggleAttendance(student.id, true)} 
-                   className="h-10 w-10 flex items-center justify-center bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl transition-all active:scale-95" 
-                   title="Revoke Attendance"
-                 >
-                   <UserMinus size={18} />
-                 </button>
-               ) : (
-                 <button 
-                   onClick={() => handleToggleAttendance(student.id, false)} 
-                   className="h-10 w-10 flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 transition-all active:scale-95"
-                   title="Mark Present"
-                 >
-                   <UserPlus size={18} />
-                 </button>
-               )}
+            <div className="w-20 shrink-0 flex items-center justify-center bg-black/20">
+               <button 
+                 onClick={() => handleToggleAttendance(student.id, student.isPresent)} 
+                 className={`h-9 w-9 flex items-center justify-center rounded-xl transition-all ${
+                   student.isPresent ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'
+                 }`}
+               >
+                 {student.isPresent ? <UserMinus size={18} /> : <UserPlus size={18} />}
+               </button>
             </div>
-            
           </div>
         ))}
       </div>

@@ -13,6 +13,7 @@ import LecturerDashboard from './PAGES/LecturerDashboard';
 import LecturerReports from './PAGES/LecturerReports';
 import AddUnit from './PAGES/AddUnit';
 import ResetPassword from './PAGES/ResetPassword';
+import LecturerHistory from './pages/LecturerHistory';
 
 const ProtectedLecturerRoute = ({ children }) => {
   const userData = JSON.parse(localStorage.getItem('user'));
@@ -64,6 +65,7 @@ function App() {
 
         {/* 2. THE ASTERISK MUST ALWAYS BE LAST */}
         <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/lecturer-history" element={<LecturerHistory />} />
       </Routes>
     </div>
   );

@@ -538,6 +538,54 @@ router.get('/expected-students/:course/:semester', async (req, res) => {
     }
 });
 
+router.get('/lecturer/unit-history/:unitCode', async (req, res) => {
+    try {
+        const unit = await Unit.findOne({ code: req.params.unitCode });
+        if (!unit) return res.status(404).json({ message: "Unit not found" });
+
+        const expectedStudents = await Student.find({ 
+            course: unit.course, 
+            semester: unit.semester 
+        }).sort({ firstName: 1 });
+
+        const attendances = await Attendance.find({ unitCode: unit.code });
+
+        // 1. Identify unique sessions and sort them
+        const uniqueSessionIds = [...new Set(attendances.map(a => a.sessionId))].sort();
+        
+        // 2. Create clean headers: "Session 1 - 23 Apr (Thu)"
+        const sessionHeaders = uniqueSessionIds.map((sId, index) => {
+            const sample = attendances.find(a => a.sessionId === sId);
+            const d = new Date(sample.date);
+            const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            const dayStr = d.toLocaleDateString('en-GB', { weekday: 'short' });
+            return `Session ${index + 1} - ${dateStr} (${dayStr})`;
+        });
+
+        const students = expectedStudents.map(student => {
+            const studentScans = attendances.filter(a => a.student.toString() === student._id.toString());
+            
+            // 3. Map status for EVERY session (Matrix)
+            const matrix = uniqueSessionIds.map(sId => {
+                const found = studentScans.find(scan => scan.sessionId === sId);
+                return found ? "Present" : "Absent";
+            });
+
+            return {
+                id: student._id,
+                name: `${student.firstName} ${student.lastName}`,
+                regNo: student.regNo,
+                percentage: (unit.totalSessions || 0) > 0 ? Math.round((studentScans.length / unit.totalSessions) * 100) : 0,
+                matrix 
+            };
+        });
+
+        res.status(200).json({ students, sessionHeaders });
+    } catch (error) {
+        res.status(500).json({ message: "Server error generating history" });
+    }
+});
+
 /*
 // ==========================================
 // 🚨 DEV BACKDOOR: BULK PASSWORD RESET 🚨

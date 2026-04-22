@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, LogOut, RotateCcw, Clock, ShieldCheck, 
-  Loader2, BookOpen, Hash, QrCode 
+  Loader2, BookOpen, Hash, QrCode, History 
 } from 'lucide-react';
 import { getLecturerUnits, incrementUnitSession } from '../services/api'; 
 
@@ -230,6 +230,16 @@ const LecturerDashboard = () => {
           <button onClick={() => navigate('/class-list')} className="flex items-center gap-4 px-5 py-4 bg-white/5 rounded-2xl border border-white/10 text-sm font-bold uppercase hover:bg-white/10 hover:border-blue-500/50 transition-all text-left">
             <Users size={20} className="text-emerald-400" /> Class List
           </button>
+
+          {/* HISTORY REPORTS CARD */}
+        <button 
+            onClick={() => navigate('/lecturer-history')} 
+            className="flex items-center gap-4 px-5 py-4 bg-white/5 rounded-2xl border border-white/10 text-sm font-bold uppercase hover:bg-white/10 hover:border-blue-500/50 transition-all text-left group"
+          >
+            <History size={20} className="text-purple-400 group-hover:scale-110 transition-transform" /> 
+            <span>View History</span>
+          </button>
+
         </div>
 
         <button onClick={() => { localStorage.removeItem('user'); navigate('/login'); }} className="flex items-center gap-4 px-5 py-4 bg-rose-500/10 text-rose-400 rounded-2xl border border-rose-500/20 hover:bg-rose-500/20 transition-all text-sm font-bold uppercase text-left">
