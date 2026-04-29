@@ -15,6 +15,13 @@ const Dashboard = () => {
   const [unitStats, setUnitStats] = useState([]);
   const [pendingScans, setPendingScans] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  
+  const [toast, setToast] = useState(null); 
+
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000); 
+  };
 
   useEffect(() => {
   const savedUser = JSON.parse(localStorage.getItem('user'));
@@ -27,13 +34,6 @@ const Dashboard = () => {
     const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase();
     setUserName(formattedName);
   }
-
-  const [toast, setToast] = useState(null); 
-  
-    const showToast = (message, type = 'error') => {
-      setToast({ message, type });
-      setTimeout(() => setToast(null), 4000); // Disappears after 4 seconds
-    };  
 
   const calculateAttendance = async () => {
     try {
