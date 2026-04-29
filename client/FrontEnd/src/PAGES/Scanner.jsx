@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BarcodeScannerComponent from "react-qr-barcode-scanner"; 
-import { ChevronLeft, ShieldCheck, Loader2, XCircle } from 'lucide-react';
+import { ChevronLeft, ShieldCheck, Loader2, XCircle, Database } from 'lucide-react';
 import SuccessOverlay from '../components/SuccessOverlay';
 import { logAttendance } from '../services/api'; 
 
@@ -64,105 +64,79 @@ const Scanner = () => {
     const user = JSON.parse(localStorage.getItem('user'));
 
     if (result?.text && !stopStream && !isProcessing) {
-      setIsProcessing(true);
+      setIsProcessing(true); // Always show the loader first
 
+      // We ALWAYS try to get the location first, even if offline
       navigator.geolocation.getCurrentPosition(async (position) => {
+        let data, scannedUnitCode, scannedUnitName, distance, sLat, sLng, lLat, lLng;
+        
         try {
           const rawText = result.text.trim();
-          let data;
+          data = JSON.parse(rawText);
           
-          // --- FIX TEST 4: SURGICAL JSON CATCH (No more Unexpected Token) ---
-          try {
-            data = JSON.parse(rawText);
-          } catch (jsonErr) {
-            throw new Error("Please scan a valid Attendance QR code.");
-          }
+          scannedUnitCode = data.code || data.unitCode;
+          scannedUnitName = data.name || data.unitName;
+          lLat = Number(data.lat);
+          lLng = Number(data.lng);
           
-          // --- FIX TEST 5: 5-SECOND SCREENSHOT KILLER ---
-          const currentTime = Date.now();
-          const qrGeneratedTime = Number(data.nonce);
-          const ageInSeconds = (currentTime - qrGeneratedTime) / 1000;
+          // CAPTURE THE LOCATION HERE
+          sLat = position.coords.latitude;
+          sLng = position.coords.longitude;
+          distance = getDistance(lLat, lLng, sLat, sLng);
 
-          // If the QR is older than 5 seconds, it's a "dead" screenshot
-          if (!data.nonce || ageInSeconds > 25 || ageInSeconds < -5) {
-            throw new Error("QR Code Expired. Please scan the live code on the screen.");
-          }
-
-          const scannedUnitCode = data.code || data.unitCode || "Unknown Code";
-          const scannedUnitName = data.name || data.unitName || "Unknown Unit";
-
-          const lLat = Number(data.lat);
-          const lLng = Number(data.lng);
-          const sLat = position.coords.latitude;
-          const sLng = position.coords.longitude;
-
-          if (!lLat || !lLng) {
-            throw new Error("Invalid QR: No location data found.");
-          }
-          
-          const distance = getDistance(lLat, lLng, sLat, sLng);
-          
-          // SYNC WITH BACKEND: Allow up to 250m
+          // 1. Check Geofence first (even if offline!)
           if (distance > 2850) {
             throw new Error(`Too Far! You are ${Math.round(distance)}m away.`);
           }
 
-          await logAttendance({
-            studentId: user._id,
-            unitCode: scannedUnitCode,  
-            unitName: scannedUnitName,
-            unitId: data.unitId,
-            sessionId: data.sessionId, 
-            distance: Math.round(distance),
-            studentLat: sLat,
-            studentLng: sLng,
-            lecturerLat: lLat,  
-            lecturerLng: lLng   
-          });
+          // 2. Try to send to the server
+          await Promise.race([
+            logAttendance({
+              studentId: user._id, unitCode: scannedUnitCode, unitName: scannedUnitName,
+              unitId: data.unitId, sessionId: data.sessionId, distance: Math.round(distance),
+              studentLat: sLat, studentLng: sLng, lecturerLat: lLat, lecturerLng: lLng
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 4000))
+          ]);
 
-          setScannedData({ unitName: scannedUnitName, unitCode: scannedUnitCode });
           setScanStatus("success");
           setStopStream(true);
           setIsProcessing(false);
 
         } catch (e) {
-          console.error("Scan Error:", e);
-          
-          // --- STEP 25: OFFLINE STORE-AND-FORWARD ---
-          if (!navigator.onLine || !e.response) {
+          // 3. OFFLINE FALLBACK: If the API failed but we have a valid location
+          if (!navigator.onLine || e.message === "Timeout" || !e.response) {
             const pending = JSON.parse(localStorage.getItem('pending_scans') || '[]');
+            
             pending.push({
               studentId: user._id, unitCode: scannedUnitCode, unitName: scannedUnitName,
               unitId: data.unitId, sessionId: data.sessionId, distance: Math.round(distance),
-              studentLat: sLat, studentLng: sLng, lecturerLat: lLat, lecturerLng: lLng 
+              studentLat: sLat, studentLng: sLng, lecturerLat: lLat, lecturerLng: lLng,
+              offline: true // Mark as offline for the lecturer's records
             });
+
             localStorage.setItem('pending_scans', JSON.stringify(pending));
-            
-            setScannedData({ unitName: scannedUnitName, unitCode: scannedUnitCode });
-            setScanStatus("offline_success"); // Trigger the new yellow UI
+            setScanStatus("offline_success");
             setStopStream(true);
             setIsProcessing(false);
-            return; // Stop here!
+            return;
           }
-          // ------------------------------------------
 
-          // 1. Show the error state and message (Normal Errors)
+          // Handle real errors (Too far, Expired QR)
+          setErrorMessage(e.response?.data?.message || e.message);
           setScanStatus("error");
-          setErrorMessage(e.response?.data?.message || e.message); 
-          
-          // 2. THE REFRESH FIX
-          setTimeout(() => { window.location.reload(); }, 3000); 
           setStopStream(true);
         }
       }, (geoErr) => {
-        setScanStatus("error");
-        setErrorMessage("GPS Error: Could not determine your location.");
+        // If GPS fails completely, we cannot allow the scan
         setIsProcessing(false);
+        setScanStatus("error");
+        setErrorMessage("Location Required: Please enable GPS and try again.");
         setStopStream(true);
       }, { 
         enableHighAccuracy: true, 
-        timeout: 15000,
-        maximumAge: 0 
+        timeout: 8000,      // Give GPS 8 seconds to find satellites
+        maximumAge: 600000 // IMPORTANT: Allow using a location found in the last 10 mins
       });
     }
   };
