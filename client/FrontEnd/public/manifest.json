@@ -1,6 +1,6 @@
 {
-  "short_name": "JKUAT Scan",
-  "name": "JKUAT QR Attendance System",
+  "short_name": "Proxi",
+  "name": "Proxi Attendance System",
   "icons": [
     {
       "src": "/logo192.png",
@@ -15,8 +15,8 @@
       "purpose": "any"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
-  "theme_color": "#2563EB",
-  "background_color": "#020617"
+  "theme_color": "#4338CA",
+  "background_color": "#D8B4FE"
 }
