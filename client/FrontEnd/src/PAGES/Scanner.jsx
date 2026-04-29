@@ -245,7 +245,7 @@ const Scanner = () => {
       {/* GLASSMORPHIC OFFLINE OVERLAY */}
       {stopStream && scanStatus === 'offline_success' && (
         <div className="fixed inset-0 z-[100] bg-indigo-950/40 backdrop-blur-md flex items-center justify-center p-8 animate-in fade-in duration-500">
-          <div className="w-full max-w-[320px] bg-amber-500/10 backdrop-blur-2xl border border-amber-500/30 rounded-[3rem] p-10 flex flex-col items-center shadow-2xl">
+          <div className="w-full max-w-[320px] bg-amber-500/25 backdrop-blur-2xl border border-amber-400/50 rounded-[3rem] p-10 flex flex-col items-center shadow-2xl">
             
             <div className="w-24 h-24 bg-amber-500/10 rounded-full flex items-center justify-center mb-8 border border-amber-500/20 shadow-inner">
               <Database size={44} className="text-amber-500" />

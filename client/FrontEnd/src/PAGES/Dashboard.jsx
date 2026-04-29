@@ -191,22 +191,20 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* STEP 25: GLASSMORPHIC SYNC BANNER */}
+      {/* STEP 25: GLASSMORPHIC PENDING SYNC BANNER */}
       {pendingScans.length > 0 && (
-        <div className="mb-6 p-5 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[2.5rem] shadow-xl flex items-center justify-between animate-in slide-in-from-top-4 duration-500">
+        <div className="mb-6 p-5 bg-amber-500/15 backdrop-blur-2xl border border-amber-400/40 rounded-[2rem] shadow-xl flex items-center justify-between animate-in slide-in-from-top-4 duration-500">
           <div className="flex items-center gap-4">
-            <div className={`p-3 rounded-2xl border ${isSyncing ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
-              {isSyncing ? (
-                <Loader2 size={20} className="text-indigo-400 animate-spin" />
-              ) : (
-                <Database size={20} className="text-amber-500" />
-              )}
+            <div className={`p-3 rounded-2xl border ${isSyncing ? 'bg-indigo-500/15 border-indigo-500/20 text-indigo-700' : 'bg-amber-500/20 border-amber-500/30 text-amber-600'}`}>
+              {isSyncing ? <Loader2 size={24} className="animate-spin" /> : <Database size={24} />}
             </div>
             <div>
-              <p className="font-black text-xs text-white uppercase tracking-widest">
-                {isSyncing ? "Syncing..." : "Offline Records"}
+              <p className="font-black text-sm text-slate-800 uppercase tracking-widest">
+                {isSyncing ? "Syncing..." : "Offline Scans"}
               </p>
-              <p className="text-[10px] font-medium text-white/50">{pendingScans.length} scan(s) pending</p>
+              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
+                {pendingScans.length} pending
+              </p>
             </div>
           </div>
           <button 
@@ -214,8 +212,8 @@ const Dashboard = () => {
             disabled={isSyncing}
             className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
               isSyncing 
-              ? 'bg-white/5 text-white/20 border-white/5 cursor-not-allowed' 
-              : 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40 border-indigo-400/30'
+              ? 'bg-white/40 text-slate-500 border-white/20 cursor-not-allowed' 
+              : 'bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/40 border-amber-400'
             }`}
           >
             {isSyncing ? 'Wait' : 'Sync Now'}
