@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getStudentStats, getAllUnits } from '../services/api';
+import { getStudentStats, getAllUnits, logAttendance } from '../services/api';
 import { 
-  Bell, Home, History, User, Scan, MapPin, Database, Code, CircleUser, CalendarX, Loader2 
+  Bell, Home, History, User, Scan, MapPin, Database, Code, CircleUser, CalendarX, Loader2, ShieldCheck, XCircle 
 } from 'lucide-react';
 
 const Dashboard = () => {
