@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStudentStats, getAllUnits } from '../services/api';
 import { 
-  Bell, Home, History, User, Scan, MapPin, Database, Code, CircleUser, CalendarX 
+  Bell, Home, History, User, Scan, MapPin, Database, Code, CircleUser, CalendarX, Loader2 
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -138,17 +138,39 @@ const Dashboard = () => {
     if (!navigator.onLine) return alert("You are still offline!");
     setIsSyncing(true);
     
+    // 1. Connection Buffer: Give the browser 2s to re-establish the socket
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    const failedScans = [];
+    const savedUser = JSON.parse(localStorage.getItem('user'));
+
     try {
-      // Loop through all saved scans and send them to the API
       for (const scan of pendingScans) {
-        await logAttendance(scan);
+        try {
+          // 2. SURGICAL CLEAN: Remove UI-only flags and ensure studentId exists
+          const { offline, ...cleanData } = scan; 
+          if (!cleanData.studentId) cleanData.studentId = savedUser?._id;
+
+          await logAttendance(cleanData);
+        } catch (err) {
+          console.error("Sync failed for a record", err);
+          failedScans.push(scan);
+        }
       }
-      // If loop finishes without crashing, clear the backpack!
-      localStorage.removeItem('pending_scans');
-      setPendingScans([]);
-      window.location.reload(); // Reload to update percentage
-    } catch (error) {
-      alert("Sync failed. Are you sure you have internet?");
+
+      if (failedScans.length === 0) {
+        localStorage.removeItem('pending_scans');
+        setPendingScans([]);
+        window.location.reload(); // Refresh percentage and history
+      } else {
+        // Keep only failed ones in storage
+        localStorage.setItem('pending_scans', JSON.stringify(failedScans));
+        setPendingScans(failedScans);
+        alert("Some records failed to sync. Please try again in a moment.");
+      }
+    } catch (globalErr) {
+      alert("Sync encountered an error. Check your connection.");
+    } finally {
       setIsSyncing(false);
     }
   };
@@ -169,21 +191,34 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* STEP 25: PENDING SYNC BANNER */}
+      {/* STEP 25: GLASSMORPHIC SYNC BANNER */}
       {pendingScans.length > 0 && (
-        <div className="mb-4 bg-amber-500/90 backdrop-blur-md border-2 border-amber-400 p-4 rounded-3xl shadow-lg flex items-center justify-between animate-in slide-in-from-top-4">
-          <div className="flex items-center gap-3 text-white">
-            <div className="p-2 bg-amber-600 rounded-full"><Database size={20} /></div>
+        <div className="mb-6 p-5 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[2.5rem] shadow-xl flex items-center justify-between animate-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-4">
+            <div className={`p-3 rounded-2xl border ${isSyncing ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+              {isSyncing ? (
+                <Loader2 size={20} className="text-indigo-400 animate-spin" />
+              ) : (
+                <Database size={20} className="text-amber-500" />
+              )}
+            </div>
             <div>
-              <p className="font-black text-sm uppercase tracking-widest">Offline Scans: {pendingScans.length}</p>
-              <p className="text-[10px] font-medium opacity-90">Waiting for connection...</p>
+              <p className="font-black text-xs text-white uppercase tracking-widest">
+                {isSyncing ? "Syncing..." : "Offline Records"}
+              </p>
+              <p className="text-[10px] font-medium text-white/50">{pendingScans.length} scan(s) pending</p>
             </div>
           </div>
           <button 
-            onClick={handleSyncOffline} disabled={isSyncing}
-            className="px-4 py-2 bg-white text-amber-600 text-xs font-black uppercase tracking-widest rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-2"
+            onClick={handleSyncOffline} 
+            disabled={isSyncing}
+            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+              isSyncing 
+              ? 'bg-white/5 text-white/20 border-white/5 cursor-not-allowed' 
+              : 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40 border-indigo-400/30'
+            }`}
           >
-            {isSyncing ? <Loader2 size={16} className="animate-spin" /> : 'Sync Now'}
+            {isSyncing ? 'Wait' : 'Sync Now'}
           </button>
         </div>
       )}

@@ -204,7 +204,7 @@ const Scanner = () => {
                   {scanStatus === 'success' && (
                     <>
                       <ShieldCheck size={54} />
-                      <p className="font-black text-xs uppercase tracking-widest mt-2">Captured</p>
+                      <p className="font-black text-xs uppercase tracking-widest mt-2"></p>
                     </>
                   )}
                 </div>
@@ -242,18 +242,28 @@ const Scanner = () => {
         <SuccessOverlay unitName={scannedData?.unitName} unitCode={scannedData?.unitCode} status={scanStatus} onComplete={() => navigate('/dashboard')} />
       )}
 
+      {/* GLASSMORPHIC OFFLINE OVERLAY */}
       {stopStream && scanStatus === 'offline_success' && (
-        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-amber-200 via-orange-100 to-yellow-300 flex flex-col items-center justify-center p-10 animate-in fade-in">
-          <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mb-6 shadow-xl animate-bounce-subtle">
-            <Database size={40} className="text-white" />
+        <div className="fixed inset-0 z-[100] bg-indigo-950/40 backdrop-blur-md flex items-center justify-center p-8 animate-in fade-in duration-500">
+          <div className="w-full max-w-[320px] bg-amber-500/10 backdrop-blur-2xl border border-amber-500/30 rounded-[3rem] p-10 flex flex-col items-center shadow-2xl">
+            
+            <div className="w-24 h-24 bg-amber-500/10 rounded-full flex items-center justify-center mb-8 border border-amber-500/20 shadow-inner">
+              <Database size={44} className="text-amber-500" />
+            </div>
+
+            <h2 className="text-2xl font-black text-white mb-3 tracking-tight">Saved Offline</h2>
+            
+            <p className="text-center text-amber-100/60 font-medium text-sm mb-10 leading-relaxed px-2">
+              <span className="text-amber-400 font-bold">{scannedData?.unitCode}</span> captured.<br/>
+              Please sync this record when you are back on campus Wi-Fi.
+            </p>
+
+            <button 
+              onClick={() => navigate('/dashboard')} 
+              className="w-full py-4 bg-amber-500/90 text-indigo-950 font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-xl hover:bg-amber-400 active:scale-95 transition-all"
+            >Return to Dashboard
+            </button>
           </div>
-          <h2 className="text-3xl font-black text-amber-900 mb-2">Saved Offline</h2>
-          <p className="text-center text-amber-800 font-bold mb-8">
-            {scannedData?.unitCode} captured.<br/>Please sync when connected to Wi-Fi.
-          </p>
-          <button onClick={() => navigate('/dashboard')} className="px-8 py-3 bg-amber-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-lg active:scale-95 transition-all">
-            Return to Dashboard
-          </button>
         </div>
       )}
 
