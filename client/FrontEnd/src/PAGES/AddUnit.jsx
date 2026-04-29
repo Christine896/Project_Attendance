@@ -14,6 +14,7 @@ const AddUnit = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSemesterOpen, setIsSemesterOpen] = useState(false);
   const semesterList = ["Year 4, Sem 1", "Year 4, Sem 2"];
+  const [errorMsg, setErrorMsg] = useState("");
 
   const schoolData = {
     "School of Computing": ["BSc. Software Engineering", "BSc. Computer Science", "BSc. Information Technology"],
@@ -28,7 +29,7 @@ const AddUnit = () => {
     code: '',
     school: '',
     course: '',
-    semster: '',
+    semester: '',
     day: 'Monday',
     startTime: '',
     endTime: ''
@@ -52,18 +53,19 @@ const AddUnit = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMsg(""); // Clear any previous errors when they click submit
     
     // 1. REGEX & TIME VALIDATIONS
     if (!/^[A-Z]{3} \d{3}$/.test(formData.code)) {
-      alert("Use format AAA 000"); return;
+      setErrorMsg("Error: Unit Code must use format AAA 000 (e.g. SCT 123)"); return;
     }
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeRegex.test(formData.startTime) || !timeRegex.test(formData.endTime)) {
-      alert("Enter time as HH:MM (e.g. 08:00)"); return;
+      setErrorMsg("Error: Enter time as HH:MM (e.g. 08:00)"); return;
     }
     if (formData.startTime < "07:00" || formData.startTime > "19:00" || 
         formData.endTime < "07:00" || formData.endTime > "19:00") {
-      alert("Classes must be between 07:00 and 19:00"); return;
+      setErrorMsg("Error: Classes must be between 07:00 and 19:00"); return;
     }
 
     try {
@@ -81,14 +83,18 @@ const AddUnit = () => {
       setIsLoading(false);
       setIsSuccess(true);
       
-      // 4. WAIT 2 SECONDS THEN REDIRECT
+      // 4. WAIT 2 SECONDS THEN RESET FORM
       setTimeout(() => {
-        navigate('/lecturer-dashboard');
+        setIsSuccess(false);
+        setFormData({
+          name: '', code: '', school: '', course: '', semester: '', day: 'Monday', startTime: '', endTime: ''
+        });
       }, 2000);
 
     } catch (err) {
       setIsLoading(false);
-      alert("Error adding unit.");
+      // Catches the specific error from the backend, or shows a default message
+      setErrorMsg(err.response?.data?.message || "Error adding unit. Please try again.");
     }
   };
 
@@ -98,14 +104,13 @@ const AddUnit = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#2563EB] via-[#111827] to-[#020617] text-white flex flex-col font-sans p-6 relative overflow-hidden">
       {isSuccess ? (
-        /* MINTY SUCCESS SCREEN */
-        <div className="flex flex-col items-center justify-center text-center z-50">
+        /* MINTY SUCCESS SCREEN (Centered Perfectly) */
+        <div className="flex-1 flex flex-col items-center justify-center text-center z-50">
           <div className="mb-6">
-            {/* Using teal-400 for a cooler, mintier green */}
             <CheckCircle2 size={100} className="text-teal-400 opacity-80" strokeWidth={1.2} />
           </div>
           <h1 className="text-3xl font-black text-white tracking-[0.2em] uppercase italic">
-            <span className="text-teal-400">unit added successfully</span>
+            <span className="text-white drop-shadow-md">unit added successfully</span>
           </h1>
         </div>
       ) : (
@@ -223,7 +228,16 @@ const AddUnit = () => {
                 </div>
 
               </div>
+             {/* BEAUTIFUL ERROR DISPLAY */}
+              {errorMsg && (
+                <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-2xl animate-in fade-in slide-in-from-top-2 shadow-lg">
+                  <p className="text-rose-400 text-xs font-bold uppercase tracking-widest text-center leading-relaxed">
+                    {errorMsg}
+                  </p>
+                </div>
+              )}
               
+              {/* Save Button */}
               <button type="submit" disabled={isLoading} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-3xl shadow-xl transition-all uppercase tracking-[0.3em] flex items-center justify-center gap-3">
                 {isLoading ? <Loader2 className="animate-spin" size={24} /> : <><Save size={20} />Save Unit</>}
               </button>

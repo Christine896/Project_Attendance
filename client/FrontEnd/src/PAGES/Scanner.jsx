@@ -128,17 +128,30 @@ const Scanner = () => {
         } catch (e) {
           console.error("Scan Error:", e);
           
-          // 1. Show the error state and message
+          // --- STEP 25: OFFLINE STORE-AND-FORWARD ---
+          if (!navigator.onLine || !e.response) {
+            const pending = JSON.parse(localStorage.getItem('pending_scans') || '[]');
+            pending.push({
+              studentId: user._id, unitCode: scannedUnitCode, unitName: scannedUnitName,
+              unitId: data.unitId, sessionId: data.sessionId, distance: Math.round(distance),
+              studentLat: sLat, studentLng: sLng, lecturerLat: lLat, lecturerLng: lLng 
+            });
+            localStorage.setItem('pending_scans', JSON.stringify(pending));
+            
+            setScannedData({ unitName: scannedUnitName, unitCode: scannedUnitCode });
+            setScanStatus("offline_success"); // Trigger the new yellow UI
+            setStopStream(true);
+            setIsProcessing(false);
+            return; // Stop here!
+          }
+          // ------------------------------------------
+
+          // 1. Show the error state and message (Normal Errors)
           setScanStatus("error");
           setErrorMessage(e.response?.data?.message || e.message); 
           
-          // 2. THE REFRESH FIX: 
-          // We wait 3 seconds so the student can read "QR Code Expired"
-          // then we force the browser to refresh the scanner page.
-          setTimeout(() => {
-            window.location.reload(); 
-          }, 3000); 
-
+          // 2. THE REFRESH FIX
+          setTimeout(() => { window.location.reload(); }, 3000); 
           setStopStream(true);
         }
       }, (geoErr) => {
@@ -148,7 +161,7 @@ const Scanner = () => {
         setStopStream(true);
       }, { 
         enableHighAccuracy: true, 
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0 
       });
     }
@@ -252,12 +265,22 @@ const Scanner = () => {
 
       {/* OVERLAYS & FOOTER */}
       {stopStream && scanStatus === 'success' && (
-        <SuccessOverlay 
-          unitName={scannedData?.unitName} 
-          unitCode={scannedData?.unitCode} 
-          status={scanStatus}
-          onComplete={() => navigate('/dashboard')} 
-        />
+        <SuccessOverlay unitName={scannedData?.unitName} unitCode={scannedData?.unitCode} status={scanStatus} onComplete={() => navigate('/dashboard')} />
+      )}
+
+      {stopStream && scanStatus === 'offline_success' && (
+        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-amber-200 via-orange-100 to-yellow-300 flex flex-col items-center justify-center p-10 animate-in fade-in">
+          <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mb-6 shadow-xl animate-bounce-subtle">
+            <Database size={40} className="text-white" />
+          </div>
+          <h2 className="text-3xl font-black text-amber-900 mb-2">Saved Offline</h2>
+          <p className="text-center text-amber-800 font-bold mb-8">
+            {scannedData?.unitCode} captured.<br/>Please sync when connected to Wi-Fi.
+          </p>
+          <button onClick={() => navigate('/dashboard')} className="px-8 py-3 bg-amber-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-lg active:scale-95 transition-all">
+            Return to Dashboard
+          </button>
+        </div>
       )}
 
       {stopStream && scanStatus === 'error' && (

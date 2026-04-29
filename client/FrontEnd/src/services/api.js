@@ -1,8 +1,20 @@
 import axios from 'axios';
 
-// Force port 5000, ignoring Vite's broken environment variables
+// THE PERMANENT FIX: Dynamic URL Sniffing + Production Readiness
+const getBaseUrl = () => {
+  // 1. PRODUCTION: If deployed (Vercel, Render), use the live URL from your hosting dashboard
+  if (import.meta.env.PROD) {
+    return import.meta.env.VITE_API_URL; 
+  }
+  
+  // 2. LOCAL DEVELOPMENT: Auto-detect the IP
+  // If on laptop: browser is 'localhost' -> returns 'http://localhost:5000'
+  // If on phone: browser is '192.168.x.x' -> returns 'http://192.168.x.x:5000'
+  return `http://${window.location.hostname}:5000`;
+};
+
 const API = axios.create({ 
-  baseURL: import.meta.env.VITE_API_URL 
+  baseURL: getBaseUrl() 
 });
 
 API.interceptors.request.use((req) => {
@@ -12,6 +24,8 @@ API.interceptors.request.use((req) => {
   }
   return req;
 });
+
+// ... Keep all your existing export const routes below exactly as they are!
 
 export const login = (formData) => API.post('/api/auth/login', formData);
 export const loginStudent = (formData) => API.post('/api/auth/login', formData);

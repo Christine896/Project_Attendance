@@ -13,6 +13,8 @@ const Dashboard = () => {
   const [activeSession, setActiveSession] = useState(null);
   const [upcomingUnits, setUpcomingUnits] = useState([]);
   const [unitStats, setUnitStats] = useState([]);
+  const [pendingScans, setPendingScans] = useState([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
   const savedUser = JSON.parse(localStorage.getItem('user'));
@@ -126,6 +128,31 @@ const Dashboard = () => {
   if (savedUser) calculateAttendance();
 }, []);
 
+  // STEP 25: Check for offline scans on load
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem('pending_scans') || '[]');
+    setPendingScans(stored);
+  }, []);
+
+  const handleSyncOffline = async () => {
+    if (!navigator.onLine) return alert("You are still offline!");
+    setIsSyncing(true);
+    
+    try {
+      // Loop through all saved scans and send them to the API
+      for (const scan of pendingScans) {
+        await logAttendance(scan);
+      }
+      // If loop finishes without crashing, clear the backpack!
+      localStorage.removeItem('pending_scans');
+      setPendingScans([]);
+      window.location.reload(); // Reload to update percentage
+    } catch (error) {
+      alert("Sync failed. Are you sure you have internet?");
+      setIsSyncing(false);
+    }
+  };
+
   const mainCardStyles = "bg-white/65 backdrop-blur-xl rounded-[28px] border border-white/40 shadow-lg p-5";
   const upcomingCardStyles = "bg-white/30 border border-white/40 p-3 rounded-[20px] flex items-center gap-3";
 
@@ -141,6 +168,25 @@ const Dashboard = () => {
           </h1>
         </div>
       </div>
+
+      {/* STEP 25: PENDING SYNC BANNER */}
+      {pendingScans.length > 0 && (
+        <div className="mb-4 bg-amber-500/90 backdrop-blur-md border-2 border-amber-400 p-4 rounded-3xl shadow-lg flex items-center justify-between animate-in slide-in-from-top-4">
+          <div className="flex items-center gap-3 text-white">
+            <div className="p-2 bg-amber-600 rounded-full"><Database size={20} /></div>
+            <div>
+              <p className="font-black text-sm uppercase tracking-widest">Offline Scans: {pendingScans.length}</p>
+              <p className="text-[10px] font-medium opacity-90">Waiting for connection...</p>
+            </div>
+          </div>
+          <button 
+            onClick={handleSyncOffline} disabled={isSyncing}
+            className="px-4 py-2 bg-white text-amber-600 text-xs font-black uppercase tracking-widest rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-2"
+          >
+            {isSyncing ? <Loader2 size={16} className="animate-spin" /> : 'Sync Now'}
+          </button>
+        </div>
+      )}
 
       {/* 2. ATTENDANCE OVERVIEW */}
       <div className={`${mainCardStyles} mb-4 flex items-center justify-between`}>

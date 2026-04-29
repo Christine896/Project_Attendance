@@ -11,7 +11,7 @@ const Profile = () => {
     regNo: "SCT211-0000/2022",
     email: "student@students.jkuat.ac.ke",
     school: "School of Computing",
-    course: "BSc. Computer Science"
+    course: "BSc. Computer Science",
   });
 
   // MODAL STATES
@@ -40,7 +40,8 @@ const Profile = () => {
         ...savedUser,
         fullName: combinedName,
         school: savedUser.school || "School of Computing",
-        course: savedUser.course || "Information Technology"
+        course: savedUser.course || "Information Technology",
+        semester: savedUser.semester || "Year 4, Sem 1"
       });
     }
   }, []);
@@ -111,7 +112,6 @@ const Profile = () => {
             <CircleUser size={48} className="text-white" strokeWidth={1.5} />
           </div>
           
-          {/* The 'capitalize' class forces every word to start with an uppercase letter */}
           <h2 className="mt-5 text-2xl font-black text-slate-900 tracking-tight text-center px-4 capitalize">
             {student.fullName.toLowerCase()}
           </h2>
@@ -119,6 +119,13 @@ const Profile = () => {
           <span className="mt-1 text-indigo-950 text-sm font-black uppercase tracking-[0.15em]">
             {student.regNo}
           </span>
+
+          {/* THE NEW SEMESTER BADGE */}
+          {student.semester && (
+            <span className="mt-2 text-indigo-900 text-[10px] font-black uppercase tracking-widest bg-white/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/60 shadow-sm">
+              {student.semester}
+            </span>
+          )}
         </div>
  
         {/* 3. DETAILS LIST */}
