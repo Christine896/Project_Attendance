@@ -153,30 +153,41 @@ const Dashboard = () => {
           const { offline, ...cleanData } = scan; 
           if (!cleanData.studentId) cleanData.studentId = savedUser?._id;
 
+          // Attempt to send to Render
           await logAttendance(cleanData);
+
         } catch (err) {
-          // CAPTURE THE REAL ERROR HERE FOR DEBUGGING
-          console.error("Backend rejected the scan because:", err.response?.data || err.message);
-          failedScans.push(scan);
+          // CAPTURE THE BACKEND'S REASON
+          const backendMessage = err.response?.data?.message || err.message;
+          console.error(`Sync rejected for ${scan.unitCode}:`, backendMessage);
+
+          // 🚨 THE SMART FIX: 🚨
+          // If the server says it's a duplicate, DO NOT put it in the failed array. Let it be deleted.
+          if (backendMessage === "Attendance already recorded.") {
+             console.log(`Scan for ${scan.unitCode} is a duplicate. Discarding.`);
+             // We do nothing, which means it won't be pushed to failedScans!
+          } else {
+             // If it failed for a real reason (no internet), keep it to try again
+             failedScans.push(scan);
+          }
         }
       }
 
       if (failedScans.length === 0) {
         localStorage.removeItem('pending_scans');
         setPendingScans([]);
-        showToast("All offline records synced successfully!", "success"); // CHANGED
+        showToast("All offline records synced successfully!", "success");
         setTimeout(() => window.location.reload(), 2000); 
       } else {
         localStorage.setItem('pending_scans', JSON.stringify(failedScans));
         setPendingScans(failedScans);
-        showToast("Some records failed to sync. Ensure stable connection.", "error"); // CHANGED
+        showToast("Some records failed to sync. Ensure stable connection.", "error");
       }
     } catch (globalErr) {
-      showToast("Sync encountered a critical error.", "error"); // CHANGED
+      showToast("Sync encountered a critical error.", "error");
     } finally {
       setIsSyncing(false);
     }
-  };
 
   const mainCardStyles = "bg-white/65 backdrop-blur-xl rounded-[28px] border border-white/40 shadow-lg p-5";
   const upcomingCardStyles = "bg-white/30 border border-white/40 p-3 rounded-[20px] flex items-center gap-3";
