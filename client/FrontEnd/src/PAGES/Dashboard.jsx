@@ -25,11 +25,15 @@ const Dashboard = () => {
     
     // 2. Apply Sentence Case (Capitalize first letter, lowercase the rest)
     const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase();
-    
     setUserName(formattedName);
   }
 
+  const [toast, setToast] = useState(null); 
   
+    const showToast = (message, type = 'error') => {
+      setToast({ message, type });
+      setTimeout(() => setToast(null), 4000); // Disappears after 4 seconds
+    };  
 
   const calculateAttendance = async () => {
     try {
@@ -135,10 +139,9 @@ const Dashboard = () => {
   }, []);
 
   const handleSyncOffline = async () => {
-    if (!navigator.onLine) return alert("You are still offline!");
+    if (!navigator.onLine) return showToast("You are still offline!", "error"); // CHANGED
     setIsSyncing(true);
     
-    // 1. Connection Buffer: Give the browser 2s to re-establish the socket
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const failedScans = [];
@@ -147,13 +150,13 @@ const Dashboard = () => {
     try {
       for (const scan of pendingScans) {
         try {
-          // 2. SURGICAL CLEAN: Remove UI-only flags and ensure studentId exists
           const { offline, ...cleanData } = scan; 
           if (!cleanData.studentId) cleanData.studentId = savedUser?._id;
 
           await logAttendance(cleanData);
         } catch (err) {
-          console.error("Sync failed for a record", err);
+          // CAPTURE THE REAL ERROR HERE FOR DEBUGGING
+          console.error("Backend rejected the scan because:", err.response?.data || err.message);
           failedScans.push(scan);
         }
       }
@@ -161,15 +164,15 @@ const Dashboard = () => {
       if (failedScans.length === 0) {
         localStorage.removeItem('pending_scans');
         setPendingScans([]);
-        window.location.reload(); // Refresh percentage and history
+        showToast("All offline records synced successfully!", "success"); // CHANGED
+        setTimeout(() => window.location.reload(), 2000); 
       } else {
-        // Keep only failed ones in storage
         localStorage.setItem('pending_scans', JSON.stringify(failedScans));
         setPendingScans(failedScans);
-        alert("Some records failed to sync. Please try again in a moment.");
+        showToast("Some records failed to sync. Ensure stable connection.", "error"); // CHANGED
       }
     } catch (globalErr) {
-      alert("Sync encountered an error. Check your connection.");
+      showToast("Sync encountered a critical error.", "error"); // CHANGED
     } finally {
       setIsSyncing(false);
     }
@@ -190,6 +193,20 @@ const Dashboard = () => {
           </h1>
         </div>
       </div>
+
+      {/* GLASSMORPHIC TOAST NOTIFICATION */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-[100] animate-in slide-in-from-top-10 fade-in duration-300">
+          <div className={`p-4 backdrop-blur-2xl border rounded-2xl shadow-2xl flex items-center gap-3 ${
+            toast.type === 'success' 
+            ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-900' 
+            : 'bg-rose-500/20 border-rose-500/30 text-rose-900'
+          }`}>
+            {toast.type === 'success' ? <ShieldCheck size={20} className="text-emerald-600" /> : <XCircle size={20} className="text-rose-600" />}
+            <p className="font-bold text-sm tracking-tight">{toast.message}</p>
+          </div>
+        </div>
+      )}
 
       {/* STEP 25: GLASSMORPHIC PENDING SYNC BANNER */}
       {pendingScans.length > 0 && (

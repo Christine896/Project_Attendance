@@ -26,6 +26,7 @@ const Scanner = () => {
   const [errorMessage, setErrorMessage] = useState(""); 
   const [zoomLevel, setZoomLevel] = useState(1); // Default to 1x
 
+
   // The 3-second timer for the error/duplicate screen
   useEffect(() => {
     if (stopStream && scanStatus === 'error') {
@@ -254,8 +255,8 @@ const Scanner = () => {
             <h2 className="text-2xl font-black text-white mb-3 tracking-tight">Saved Offline</h2>
             
             <p className="text-center text-amber-100/60 font-medium text-sm mb-10 leading-relaxed px-2">
-              <span className="text-amber-400 font-bold">{scannedData?.unitCode}</span> captured.<br/>
-              Please sync this record when you are back on campus Wi-Fi.
+              <span className="text-amber-400 font-bold">{scannedData?.unitCode}</span><br/>
+              Please sync when you reconnect to Wi-Fi.
             </p>
 
             <button 

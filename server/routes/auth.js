@@ -210,24 +210,37 @@ router.post('/login', async (req, res) => {
 // ==========================================
 router.post('/scan', async (req, res) => {
     try {
-        const { unitName, unitCode, unitId, sessionId, lecturerLat, lecturerLng, studentLat, studentLng, studentId } = req.body;
+        const { unitName, unitCode, unitId, sessionId, lecturerLat, lecturerLng, studentLat, studentLng, studentId, distance: preCalculatedDistance } = req.body;
+        
         const student = await Student.findById(studentId);
         const unit = await Unit.findOne({ code: unitCode });
 
-        // 🚨 SECURITY CHECK 1: Correct Course?
+        if (!student || !unit) {
+            return res.status(404).json({ message: "Student or Unit not found." });
+        }
+
+        // 🚨 SECURITY CHECK 1 & 2: Correct Course and Semester?
         if (student.course !== unit.course) {
             return res.status(403).json({ message: `Denied: This unit is for ${unit.course} students.` });
         }
-
-        // 🚨 SECURITY CHECK 2: Correct Semester? (THE SURGICAL FIX)
         if (student.semester !== unit.semester) {
             return res.status(403).json({ message: `Denied: This unit is for ${unit.semester} students.` });
         }
 
-        // 🚨 SECURITY CHECK 3: Geofencing
-        const distance = calculateDistance(Number(lecturerLat), Number(lecturerLng), Number(studentLat), Number(studentLng));
-        if (distance > 2850) {
-            return res.status(403).json({ message: `Too far! (${Math.round(distance)}m away)` });
+        // 🚨 SECURITY CHECK 3: Geofencing (SMART FIX FOR OFFLINE SYNC)
+        let finalDistance = 0;
+
+        // If it's a live scan, we recalculate. If it's an offline sync, we use the preCalculatedDistance
+        if (lecturerLat && lecturerLng && studentLat && studentLng) {
+            finalDistance = calculateDistance(Number(lecturerLat), Number(lecturerLng), Number(studentLat), Number(studentLng));
+        } else if (preCalculatedDistance !== undefined) {
+            finalDistance = Number(preCalculatedDistance); // Trust the offline geofence calculation
+        } else {
+            return res.status(400).json({ message: "No valid location data provided." });
+        }
+
+        if (finalDistance > 2850) {
+            return res.status(403).json({ message: `Too far! (${Math.round(finalDistance)}m away)` });
         }
 
         // 🚨 SECURITY CHECK 4: No Double Scanning
@@ -243,15 +256,16 @@ router.post('/scan', async (req, res) => {
             unitCode, 
             unitId, 
             sessionId, 
-            distance: Math.round(distance), 
+            distance: Math.round(finalDistance), 
             status: 'Present' 
         });
+        
         await newRecord.save();
-        res.status(201).json({ message: "Verified!", distance: Math.round(distance) });
+        res.status(201).json({ message: "Verified!", distance: Math.round(finalDistance) });
 
     } catch (error) { 
         console.error("Scan Error:", error);
-        res.status(500).json({ message: "Scan Error" }); 
+        res.status(500).json({ message: "Scan Error", error: error.message }); 
     }
 });
 
