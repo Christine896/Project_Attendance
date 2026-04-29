@@ -13,7 +13,7 @@ import LecturerDashboard from './PAGES/LecturerDashboard';
 import LecturerReports from './PAGES/LecturerReports';
 import AddUnit from './PAGES/AddUnit';
 import ResetPassword from './PAGES/ResetPassword';
-import LecturerHistory from './pages/LecturerHistory';
+import LecturerHistory from './PAGES/LecturerHistory';
 
 const ProtectedLecturerRoute = ({ children }) => {
   const userData = JSON.parse(localStorage.getItem('user'));
