@@ -116,7 +116,7 @@ const LecturerDashboard = () => {
         const targetCode = selectedUnit?.unitCode || selectedUnit?.code;
         if (!targetCode || !sessionId) return;
 
-        const response = await fetch(`http://localhost:5000/api/auth/lecturer/attendance/${targetCode}/${sessionId}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/attendance/${targetCode}/${sessionId}`);
         const data = await response.json();
         
         if (Array.isArray(data)) {

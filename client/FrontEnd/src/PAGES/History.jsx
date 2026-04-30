@@ -132,9 +132,9 @@ const History = () => {
                   <p className="text-[10px] text-indigo-900/50 font-black uppercase tracking-widest mb-0.5">{log.code}</p>
                   <h3 className="text-slate-900 font-black text-sm tracking-tight leading-tight">{log.name}</h3>
                 </div>
-                <div className={`flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tighter ${log.status === 'Present' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {log.status === 'Present' ? <CheckCircle2 size={13} strokeWidth={3} /> : <XCircle size={13} strokeWidth={3} />}
-                  <span>{log.status}</span>
+                <div className={`flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tighter ${(log.status === 'Present' || log.status === 'Manual') ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {(log.status === 'Present' || log.status === 'Manual') ? <CheckCircle2 size={13} strokeWidth={3} /> : <XCircle size={13} strokeWidth={3} />}
+                  <span>{log.status === 'Manual' ? 'Present (Override)' : log.status}</span>
                 </div>
               </div>
 

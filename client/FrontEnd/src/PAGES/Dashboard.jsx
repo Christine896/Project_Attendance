@@ -153,21 +153,18 @@ const Dashboard = () => {
           const { offline, ...cleanData } = scan; 
           if (!cleanData.studentId) cleanData.studentId = savedUser?._id;
 
-          // Attempt to send to Render
           await logAttendance(cleanData);
-
         } catch (err) {
-          // CAPTURE THE BACKEND'S REASON
-          const backendMessage = err.response?.data?.message || err.message;
-          console.error(`Sync rejected for ${scan.unitCode}:`, backendMessage);
+          // Check if it's a 400-level error (Client error, like duplicate or out of bounds)
+          const statusCode = err.response?.status;
+          const backendMessage = err.response?.data?.message || "";
 
-          // 🚨 THE SMART FIX: 🚨
-          // If the server says it's a duplicate, DO NOT put it in the failed array. Let it be deleted.
-          if (backendMessage === "Attendance already recorded.") {
-             console.log(`Scan for ${scan.unitCode} is a duplicate. Discarding.`);
-             // We do nothing, which means it won't be pushed to failedScans!
+          // If the server explicitly rejected it (Duplicate, Wrong Semester, etc.), TRASH IT.
+          if (statusCode === 400 || statusCode === 403 || backendMessage.includes("already recorded")) {
+             console.log(`Discarding invalid/duplicate scan: ${scan.unitCode}`);
+             // Do nothing, meaning it WON'T be added to failedScans
           } else {
-             // If it failed for a real reason (no internet), keep it to try again
+             // Only keep it if it's a real network error (500 or timeout)
              failedScans.push(scan);
           }
         }
@@ -187,7 +184,7 @@ const Dashboard = () => {
       showToast("Sync encountered a critical error.", "error");
     } finally {
       setIsSyncing(false);
-    }
+    }};
 
   const mainCardStyles = "bg-white/65 backdrop-blur-xl rounded-[28px] border border-white/40 shadow-lg p-5";
   const upcomingCardStyles = "bg-white/30 border border-white/40 p-3 rounded-[20px] flex items-center gap-3";
