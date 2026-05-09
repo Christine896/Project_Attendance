@@ -15,10 +15,22 @@ import AddUnit from './PAGES/AddUnit';
 import ResetPassword from './PAGES/ResetPassword';
 import LecturerHistory from './PAGES/LecturerHistory';
 
+// GUARD 1: Only allows Students
+const ProtectedStudentRoute = ({ children }) => {
+  const userData = JSON.parse(localStorage.getItem('user'));
+  if (!userData) return <Navigate to="/login" replace />;
+  if (userData.role !== 'student') {
+    return <Navigate to="/lecturer-dashboard" replace />; // Bounce Lecturers back
+  }
+  return children;
+};
+
+// GUARD 2: Only allows Lecturers
 const ProtectedLecturerRoute = ({ children }) => {
   const userData = JSON.parse(localStorage.getItem('user'));
-  if (!userData || userData.role !== 'lecturer') {
-    return <Navigate to="/login" replace />;
+  if (!userData) return <Navigate to="/login" replace />;
+  if (userData.role !== 'lecturer') {
+    return <Navigate to="/dashboard" replace />; // Bounce Students back
   }
   return children;
 };
@@ -40,32 +52,30 @@ function App() {
     }
 }, [navigate]);
 
-  return (
+ return (
     <div className="App">
       <Routes>
-        {/* Auth Routes */}
+        {/* Public Routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* Student Routes */}
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/scanner" element={<Scanner />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/history" element={<History />} />
-        <Route path="/profile" element={<Profile />} />
+        {/* Protected Student Routes */}
+        <Route path="/dashboard" element={<ProtectedStudentRoute><Dashboard /></ProtectedStudentRoute>} />
+        <Route path="/scanner" element={<ProtectedStudentRoute><Scanner /></ProtectedStudentRoute>} />
+        <Route path="/notifications" element={<ProtectedStudentRoute><Notifications /></ProtectedStudentRoute>} />
+        <Route path="/history" element={<ProtectedStudentRoute><History /></ProtectedStudentRoute>} />
+        <Route path="/profile" element={<ProtectedStudentRoute><Profile /></ProtectedStudentRoute>} />
 
-        {/* Lecturer Routes */}
+        {/* Protected Lecturer Routes */}
         <Route path="/lecturer-dashboard" element={<ProtectedLecturerRoute><LecturerDashboard /></ProtectedLecturerRoute>} />
         <Route path="/class-list" element={<ProtectedLecturerRoute><LecturerReports /></ProtectedLecturerRoute>} />
         <Route path="/add-unit" element={<ProtectedLecturerRoute><AddUnit /></ProtectedLecturerRoute>} />
+        <Route path="/lecturer-history" element={<ProtectedLecturerRoute><LecturerHistory /></ProtectedLecturerRoute>} />
 
-        {/* 1. MOVE RESET PASSWORD ABOVE THE ASTERISK */}
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
-
-        {/* 2. THE ASTERISK MUST ALWAYS BE LAST */}
+        {/* Catch-all Redirect */}
         <Route path="*" element={<Navigate to="/" />} />
-        <Route path="/lecturer-history" element={<LecturerHistory />} />
       </Routes>
     </div>
   );

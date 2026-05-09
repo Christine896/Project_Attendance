@@ -17,15 +17,33 @@ const API = axios.create({
   baseURL: getBaseUrl() 
 });
 
+// --- EXISTING REQUEST INTERCEPTOR (Surgical Fix for your storage logic) ---
 API.interceptors.request.use((req) => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  if (user && user.token) {
-    req.headers.Authorization = `Bearer ${user.token}`;
+  const token = localStorage.getItem('token'); // Look for the separate 'token' key
+  if (token) {
+    req.headers.Authorization = `Bearer ${token}`;
   }
   return req;
 });
 
-// ... Keep all your existing export const routes below exactly as they are!
+// --- NEW RESPONSE INTERCEPTOR (The Session Timeout Guard) ---
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // 401 means the token has expired or is invalid
+    if (error.response && error.response.status === 401) {
+      console.warn("Session expired. Logging out...");
+      
+      // Clear all local data so the app doesn't think you are still logged in
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      // Jump to login with a message in the URL
+      window.location.href = '/login?session=expired';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const login = (formData) => API.post('/api/auth/login', formData);
 export const loginStudent = (formData) => API.post('/api/auth/login', formData);
