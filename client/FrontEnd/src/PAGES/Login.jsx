@@ -5,6 +5,7 @@ import { loginStudent } from '../services/api';
 
 const Login = () => {
   const navigate = useNavigate();
+  const API_URL = import.meta.env.VITE_API_URL;
   const [regNumber, setRegNumber] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -83,7 +84,7 @@ const Login = () => {
 
       try {
           setForgotLoading(true);
-          const res = await fetch(`http://192.168.0.102:5000/api/auth/forgot-password`, {
+          const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ regNo: regNumber }) // Send the main regNumber state
