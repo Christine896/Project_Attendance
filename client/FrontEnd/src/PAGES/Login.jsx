@@ -189,7 +189,7 @@ const Login = () => {
                   e.preventDefault();
                   // Enforce entering RegNo first
                   if (!regNumber.trim()) {
-                    setError("Please enter your Registration Number above to reset your password.");
+                    setErrors({ regNumber: "Please enter your Registration Number first." });
                     return;
                   }
                   setShowForgotModal(true);
