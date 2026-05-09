@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getStudentStats, getAllUnits, logAttendance } from '../services/api';
+import { getStudentStats, getAllUnits, logAttendance, getNotifications } from '../services/api';
 import { 
   Bell, Home, History, User, Scan, MapPin, Database, Code, CircleUser, CalendarX, Loader2, ShieldCheck, XCircle 
 } from 'lucide-react';
@@ -103,22 +103,10 @@ const Dashboard = () => {
       setUpcomingUnits(upcomingList);
 
       // SURGICAL FIX: Attach the VIP token to the raw fetch request
-      const token = localStorage.getItem('token');
-      const notifRes = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/${savedUser._id}`, {
-          headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-          }
-      });
+      // SURGICAL FIX: Use Axios API to automatically handle tokens and Local/Prod URLs
+      const notifRes = await getNotifications(savedUser._id);
+      const notifData = notifRes.data;
       
-      // Check if this specific fetch failed due to session expiry
-      if (notifRes.status === 401 || notifRes.status === 403) {
-        localStorage.clear();
-        navigate('/login?message=Session expired. Please log in again.');
-        return;
-      }
-      
-      const notifData = await notifRes.json();
       if (Array.isArray(notifData)) {
         const hasUnreadAlerts = notifData.some(n => n.isRead === false);
         setHasUnread(hasUnreadAlerts);

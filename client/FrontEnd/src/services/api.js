@@ -61,5 +61,6 @@ export const getStudentHistory = (studentId) => API.get(`/api/attendance/student
 export const getAllUnits = () => API.get('/api/units/all');
 export const incrementUnitSession = (unitId) => API.post(`/api/auth/lecturer/unit/${unitId}/increment`);
 export const getStudentStats = (studentId) => API.get(`/api/auth/stats/${studentId}`);
+export const getNotifications = (studentId) => API.get(`/api/auth/notifications/${studentId}`);
 
 export default API;
