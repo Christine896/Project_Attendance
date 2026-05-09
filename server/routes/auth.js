@@ -22,6 +22,23 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c; 
 };
+
+const verifyToken = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Unauthorized: No token provided." });
+    }
+
+    const token = authHeader.split(' ')[1];
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+        req.user = decoded; // Token is valid, let them through
+        next(); 
+    } catch (error) {
+        return res.status(401).json({ message: "Unauthorized: Invalid or expired token." });
+    }
+};
+
     // --- TEMPORARY STAGING MODEL ---
     const mongoose = require('mongoose');
     const PendingStudentSchema = new mongoose.Schema({
@@ -216,7 +233,7 @@ router.post('/login', async (req, res) => {
 // ==========================================
 // 3. SCAN DOORWAY (Geofencing & Security)
 // ==========================================
-router.post('/scan', async (req, res) => {
+router.post('/scan', verifyToken, async (req, res) => {
     try {
         const { unitName, unitCode, unitId, sessionId, lecturerLat, lecturerLng, studentLat, studentLng, studentId, distance: preCalculatedDistance } = req.body;
         
@@ -280,21 +297,21 @@ router.post('/scan', async (req, res) => {
 // ==========================================
 // 4. LECTURER ROUTES
 // ==========================================
-router.post('/lecturer/session', async (req, res) => {
+router.post('/lecturer/session', verifyToken, async (req, res) => {
     try {
         await ClassSession.create(req.body);
         res.status(201).json({ message: "Session Anchored successfully" });
     } catch (error) { res.status(500).json({ message: "Failed to anchor session" }); }
 });
 
-router.get('/lecturer/attendance/:unitCode/:sessionId', async (req, res) => {
+router.get('/lecturer/attendance/:unitCode/:sessionId', verifyToken, async (req, res) => {
     try {
         const list = await Attendance.find({ unitCode: req.params.unitCode, sessionId: req.params.sessionId }).populate('student', 'firstName lastName regNo');
         res.status(200).json(list);
     } catch (error) { res.status(500).json({ message: "Error fetching attendance" }); }
 });
 
-router.post('/lecturer/unit/:unitId/increment', async (req, res) => {
+router.post('/lecturer/unit/:unitId/increment', verifyToken, async (req, res) => {
     try {
         const updated = await Unit.findByIdAndUpdate(req.params.unitId, { $inc: { totalSessions: 1 } }, { returnDocument: 'after' });
         res.status(200).json(updated);
@@ -304,7 +321,7 @@ router.post('/lecturer/unit/:unitId/increment', async (req, res) => {
 // ==========================================
 // 5. HISTORY & STATS ENGINE
 // ==========================================
-router.get('/history/:studentId', async (req, res) => {
+router.get('/history/:studentId', verifyToken, async (req, res) => {
     try {
         const student = await Student.findById(req.params.studentId);
         const presentRecords = await Attendance.find({ student: req.params.studentId }).lean();
@@ -324,7 +341,7 @@ router.get('/history/:studentId', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "History error" }); }
 });
 
-router.get('/stats/:studentId', async (req, res) => {
+router.get('/stats/:studentId', verifyToken, async (req, res) => {
     try {
         const student = await Student.findById(req.params.studentId);
         const courseUnits = await Unit.find({ course: student.course, semester: student.semester });
@@ -349,14 +366,14 @@ router.get('/stats/:studentId', async (req, res) => {
 // ==========================================
 // 6. NOTIFICATION SYSTEM
 // ==========================================
-router.get('/notifications/:studentId', async (req, res) => {
+router.get('/notifications/:studentId', verifyToken, async (req, res) => {
     try {
         const notifs = await Notification.find({ student: req.params.studentId }).sort({ date: -1 }).limit(20);
         res.status(200).json(notifs);
     } catch (error) { res.status(500).json({ message: "Fetch failed" }); }
 });
 
-router.put('/notifications/mark-read/:studentId', async (req, res) => {
+router.put('/notifications/mark-read/:studentId', verifyToken, async (req, res) => {
     try {
         await Notification.updateMany({ student: req.params.studentId, isRead: false }, { $set: { isRead: true } });
         res.status(200).json({ message: "Marked all as read" });
@@ -456,7 +473,7 @@ router.post('/reset-password/:token', async (req, res) => {
 // ==========================================
 // STEP 16: CHANGE PASSWORD (Inside Profile)
 // ==========================================
-router.post('/change-password', async (req, res) => {
+router.post('/change-password', verifyToken, async (req, res) => {
     try {
         const { studentId, currentPassword, newPassword } = req.body;
         const student = await Student.findById(studentId);
@@ -512,7 +529,7 @@ router.post('/change-password', async (req, res) => {
 // ==========================================
 // STEP 19: MANUAL ATTENDANCE OVERRIDE
 // ==========================================
-router.post('/lecturer/attendance/toggle', async (req, res) => {
+router.post('/lecturer/attendance/toggle', verifyToken, async (req, res) => {
     try {
         const { studentId, sessionId, unitCode, unitName, unitId, action } = req.body;
 
@@ -544,7 +561,7 @@ router.post('/lecturer/attendance/toggle', async (req, res) => {
 });
 
 // FETCH ALL STUDENTS EXPECTED FOR A SPECIFIC UNIT (By Course & Semester)
-router.get('/expected-students/:course/:semester', async (req, res) => {
+router.get('/expected-students/:course/:semester', verifyToken, async (req, res) => {
     try {
         const { course, semester } = req.params;
         
@@ -561,7 +578,7 @@ router.get('/expected-students/:course/:semester', async (req, res) => {
     }
 });
 
-router.get('/lecturer/unit-history/:unitCode', async (req, res) => {
+router.get('/lecturer/unit-history/:unitCode', verifyToken, async (req, res) => {
     try {
         const unit = await Unit.findOne({ code: req.params.unitCode });
         if (!unit) return res.status(404).json({ message: "Unit not found" });
