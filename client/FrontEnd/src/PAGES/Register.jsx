@@ -510,7 +510,7 @@ const Register = () => {
 
                 <button disabled={isVerifying || otpValue.length !== 6} type="submit" 
                     className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
-                    {isVerifying ? <Loader2 className="animate-spin" size={20} /> : "Verify & Continue"}
+                    {isVerifying ? <Loader2 className="animate-spin" size={20} /> : "Verify"}
                 </button>
             </form>
 

@@ -20,9 +20,10 @@ const StudentSchema = new mongoose.Schema({
         type: String, 
         default: null 
     },
-    otpExpires: { 
-        type: Date, 
-        default: null 
+    otpExpires: {
+    type: Date,
+    default: Date.now,
+    expires: 300
     },
     resetPasswordToken: {
         type: String,

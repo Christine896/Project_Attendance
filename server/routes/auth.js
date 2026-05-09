@@ -38,7 +38,9 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     }, { timestamps: true });
 
     // Auto-delete records after 15 minutes if not verified
-    PendingStudentSchema.index({ createdAt: 1 }, { expireAfterSeconds: 900 });
+    // Auto-delete records after 5 minutes (300 seconds) if not verified
+    // Automatically delete the document at the exact time stored in otpExpires
+    PendingStudentSchema.index({ otpExpires: 1 }, { expireAfterSeconds: 0 });
     const PendingStudent = mongoose.model('PendingStudent', PendingStudentSchema);
 
 // ==========================================
@@ -61,7 +63,8 @@ router.post('/register', async (req, res) => {
         
         console.log(`\n🚨 [DEV MODE] OTP for ${email} is: ${otp} 🚨\n`); //developer hack to view all otp;valid and invalid
 
-        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
+        // Set expiry to exactly 5 minutes
+        const otpExpires = new Date(Date.now() + 5 * 60 * 1000); 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -116,7 +119,12 @@ router.post('/verify-otp', async (req, res) => {
 
         // 2. Validate OTP
         if (pending.otp !== otp) return res.status(400).json({ message: "Invalid code." });
-        if (new Date() > pending.otpExpires) return res.status(400).json({ message: "Code expired. Please register again." });
+        const now = Date.now();
+        const expiryTime = new Date(pending.otpExpires).getTime();
+
+        if (now > expiryTime) {
+            return res.status(400).json({ message: "This OTP has expired. Please request a new one." });
+        }
 
         // 3. THE FIX: Transfer ALL required fields from Pending to Student
         const verifiedStudent = new Student({
