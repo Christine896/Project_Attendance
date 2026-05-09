@@ -18,7 +18,7 @@ const Register = () => {
     password: ''
   });
   const API_URL = import.meta.env.VITE_API_URL;
-  const [error, setError] = useState(""); 
+  const [errors, setErrors] = useState({}); 
   const [successMsg, setSuccessMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [availableCourses, setAvailableCourses] = useState([]);
@@ -62,13 +62,13 @@ const Register = () => {
     setFormData({ ...formData, school: school, course: '' });
     setAvailableCourses(schoolData[school] || []);
     setIsSchoolOpen(false);
-    setError("");
+    setErrors({ ...errors, school: null, course: null }); 
   };
 
   const handleCourseSelect = (course) => {
     setFormData({ ...formData, course: course });
     setIsCourseOpen(false);
-    setError("");
+    setErrors({ ...errors, course: null });
   };
 
   // --- NEW: COUNTDOWN TIMER FOR RESEND ---
@@ -82,8 +82,8 @@ const Register = () => {
 
   // --- NEW: RESEND OTP FUNCTION ---
   const handleResendOtp = async () => {
-    setResendTimer(60); // Reset timer
-    setError("");
+    setResendTimer(60); 
+    setErrors({}); // SURGICAL FIX
     setOtpValue("");
     
     try {
@@ -91,60 +91,67 @@ const Register = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
-      });;
+      });
     } catch (err) {
-      setError("Failed to resend. Check your connection.");
+      setErrors({ general: "Failed to resend. Check your connection." }); // SURGICAL FIX
     }
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setError(""); 
+    setErrors({}); 
+    let validationErrors = {};
 
-    // 1. Name Validation (Letters only)
+    // 1. Name Validation
     const namePattern = /^[A-Za-z\s]+$/;
-    if (!namePattern.test(formData.firstName) || !namePattern.test(formData.lastName)) {
-      setError("Names should only contain letters.");
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
+    if (!formData.firstName.trim()) {
+      validationErrors.firstName = "First name is required";
+    } else if (!namePattern.test(formData.firstName)) {
+      validationErrors.firstName = "Names should only contain letters";
+    }
+
+    if (!formData.lastName.trim()) {
+      validationErrors.lastName = "Last name is required";
+    } else if (!namePattern.test(formData.lastName)) {
+      validationErrors.lastName = "Names should only contain letters";
     }
 
     // 2. University Email Check
-    if (!formData.email.trim().toLowerCase().endsWith("@students.jkuat.ac.ke")) {
-      setError("You must use your JKUAT student email");
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return; 
+    if (!formData.email.trim()) {
+      validationErrors.email = "Email is required";
+    } else if (!formData.email.trim().toLowerCase().endsWith("@students.jkuat.ac.ke")) {
+      validationErrors.email = "You must use your JKUAT student email";
     }
 
     // 3. Student ID Format
     const regNoPattern = /^[A-Z]{3}\d{3}-\d{4}\/\d{4}$/;
-    if (!regNoPattern.test(formData.regNo)) {
-      setError("Invalid Student ID format");
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
+    if (!formData.regNo.trim()) {
+      validationErrors.regNo = "Student ID is required";
+    } else if (!regNoPattern.test(formData.regNo)) {
+      validationErrors.regNo = "Invalid Format: Use SCT211-0001/2022";
     }
 
-    // This now allows underscores (_) alongside other special characters
+    // 4. Password Security
     const passwordPattern = /^(?=.*[0-9])(?=.*[!@#$%^&*_])[a-zA-Z0-9!@#$%^&*_]{6,}$/;
-    if (!passwordPattern.test(formData.password)) {
-      setError("Password should have a minimum of 6 characters, 1 number, and 1 symbol");
+    if (!formData.password) {
+      validationErrors.password = "Password is required";
+    } else if (!passwordPattern.test(formData.password)) {
+      validationErrors.password = "Need 6+ characters, 1 number, and 1 symbol";
+    }
+
+    // 5. UNBUNDLED School/Course/Semester
+    if (!formData.school) validationErrors.school = "Please select your school";
+    if (!formData.course) validationErrors.course = "Please select your course";
+    if (!formData.semester) validationErrors.semester = "Please select your semester";
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
-    }
-
-    if (!formData.school || !formData.course || !formData.semester) {
-    setError("Please select your school, course, and semester.");
-    return;
-    }
-
-    if (!formData.school || !formData.course) {
-      setError("Please select both your school and course.");
-      return;
-    }
+    } 
 
     try {
       setIsLoading(true);
-      // Replace the old fetch with this:
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,14 +161,14 @@ const Register = () => {
       if (!res.ok) throw new Error(data.message);
 
       if (data.requireOtp) {
-          // Save the WHOLE form so data persists if the student goes to Gmail
           localStorage.setItem('isVerifying', 'true');
           localStorage.setItem('pendingFormData', JSON.stringify(formData));
           setShowOtpModal(true);
       }
       
     } catch (err) {
-      setError(err.message || "Server error: Registration failed.");
+      // FIX: Use setErrors object for general errors
+      setErrors({ general: err.message || "Server error: Registration failed." });
     } finally {
       setIsLoading(false);
     }
@@ -169,17 +176,16 @@ const Register = () => {
 
   const handleVerifyOtp = async (e) => {
       e.preventDefault();
-      setError("");
+      setErrors({}); // 1. FIX HERE
       
       if (otpValue.length !== 6) {
-          setError("OTP must be 6 digits.");
+          setErrors({ general: "OTP must be 6 digits." }); // 2. FIX HERE
           return;
       }
 
       try {
           setIsVerifying(true);
-          // Replace the old fetch with this:
-         const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
+          const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ regNo: formData.regNo, otp: otpValue })
@@ -188,7 +194,6 @@ const Register = () => {
           const data = await res.json();
           if (!res.ok) throw new Error(data.message);
 
-          // SUCCESS: Wipe the temporary memory so the modal doesn't "haunt" the user
           localStorage.removeItem('isVerifying');
           localStorage.removeItem('pendingFormData');
 
@@ -200,10 +205,10 @@ const Register = () => {
           }, 2000);
 
       } catch (err) {
-          setError(err.message || "Verification failed.");
+          setErrors({ general: err.message || "Verification failed." }); // 3. FIX HERE
           setTimeout(() => {
               setOtpValue("");
-              setError("");
+              setErrors({}); // 4. FIX HERE
           }, 2000);
       } finally {
           setIsVerifying(false);
@@ -257,14 +262,14 @@ const Register = () => {
           </div>
 
           <div className="w-full bg-white/70 backdrop-blur-2xl p-8 rounded-[40px] border border-white/40 shadow-2xl shadow-black/10 text-left">
-            {error && (
+            {errors.general && (
               <div className="bg-rose-50 border border-rose-200 text-rose-600 p-4 rounded-2xl mb-6 flex items-start gap-3 animate-in slide-in-from-top-2">
                 <AlertCircle size={18} className="shrink-0 mt-0.5" />
-                <p className="text-[11px] font-bold uppercase tracking-tight leading-tight">{error}</p>
+                <p className="text-[11px] font-bold uppercase tracking-tight leading-tight">{errors.general}</p>
               </div>
             )}
 
-            <form onSubmit={handleRegister} className="space-y-5">
+            <form onSubmit={handleRegister} noValidate className="space-y-5">
               {/* NAME SECTION - SPLIT INTO TWO */}
               <div className="flex gap-3"> 
                 <div className="space-y-1.5 flex-1">
@@ -275,12 +280,17 @@ const Register = () => {
                       type="text" 
                       required 
                       placeholder="Alex" 
-                      className={inputBaseStyles}
+                      className={`${inputBaseStyles} ${errors.firstName ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}
                       value={formData.firstName}
-                      onChange={(e) => setFormData({...formData, firstName: e.target.value})} 
+                      onChange={(e) => {
+                        setFormData({...formData, firstName: e.target.value});
+                        if(errors.firstName) setErrors({...errors, firstName: null});
+                      }} 
                     />
                   </div>
+                  {errors.firstName && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.firstName}</p>}
                 </div>
+                
 
                 <div className="space-y-1.5 flex-1">
                   <label className={labelStyles}>Last Name</label>
@@ -290,11 +300,15 @@ const Register = () => {
                       type="text" 
                       required 
                       placeholder="Johnson" 
-                      className={inputBaseStyles.replace('pl-12', 'pl-4')} // Removing left padding since no icon
+                      className={`${inputBaseStyles.replace('pl-12', 'pl-4')} ${errors.lastName ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}
                       value={formData.lastName}
-                      onChange={(e) => setFormData({...formData, lastName: e.target.value})} 
+                      onChange={(e) => {
+                        setFormData({...formData, lastName: e.target.value});
+                        if(errors.lastName) setErrors({...errors, lastName: null});
+                      }} 
                     />
                   </div>
+                  {errors.lastName && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.lastName}</p>}
                 </div>
               </div>
 
@@ -302,22 +316,32 @@ const Register = () => {
                 <label className={labelStyles}>Student ID</label>
                 <div className="relative flex items-center text-slate-500">
                   <Building2 className="absolute left-4" size={20} />
-                  <input type="text" required placeholder="SCT211-0001/2022" 
-                    className={inputBaseStyles + " uppercase"}
+                  <input 
+                    type="text" 
+                    placeholder="SCT211-0001/2022" 
+                    className={`${inputBaseStyles} uppercase ${errors.regNo ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}
                     value={formData.regNo}
-                    onChange={(e) => setFormData({...formData, regNo: e.target.value.toUpperCase()})} />
+                    onChange={(e) => {
+                      setFormData({...formData, regNo: e.target.value.toUpperCase()});
+                      if(errors.regNo) setErrors({...errors, regNo: null}); 
+                    }} 
+                  />
                 </div>
+                {errors.regNo && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.regNo}</p>}
               </div>
 
               <div className="space-y-1.5 relative">
                 <label className={labelStyles}>School</label>
-                <div onClick={() => setIsSchoolOpen(!isSchoolOpen)} className={inputBaseStyles}>
+                <div 
+                  onClick={() => setIsSchoolOpen(!isSchoolOpen)} 
+                  className={`${inputBaseStyles} ${errors.school ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}>
                     <GraduationCap className="absolute left-4 text-slate-500" size={20} />
                     <span className={formData.school ? "text-slate-900" : "text-slate-400 text-sm"}>
                         {formData.school || "Select School"}
                     </span>
                     <ChevronDown className={`text-slate-400 transition-transform ${isSchoolOpen ? 'rotate-180' : ''}`} size={18} />
                 </div>
+                {errors.school && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.school}</p>}
                 {isSchoolOpen && (
                     <div className={dropdownMenuStyles}>
                         {Object.keys(schoolData).map((school) => (
@@ -333,13 +357,14 @@ const Register = () => {
               <div className="space-y-1.5 relative">
                 <label className={labelStyles}>Course</label>
                 <div onClick={() => formData.school && setIsCourseOpen(!isCourseOpen)} 
-                     className={`${inputBaseStyles} ${!formData.school ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    className={`${inputBaseStyles} ${!formData.school ? 'opacity-50 cursor-not-allowed' : ''} ${errors.course ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}>
                     <BookOpenText className="absolute left-4 text-slate-500" size={20} />
                     <span className={formData.course ? "text-slate-900" : "text-slate-400 text-sm"}>
                         {formData.course || "Select Course"}
                     </span>
                     <ChevronDown className={`text-slate-400 transition-transform ${isCourseOpen ? 'rotate-180' : ''}`} size={18} />
                 </div>
+                {errors.course && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.course}</p>}
                 {isCourseOpen && formData.school && (
                     <div className={dropdownMenuStyles}>
                         {availableCourses.map((course) => (
@@ -355,17 +380,19 @@ const Register = () => {
               {/* Semester Input */}
               <div className="space-y-1.5 relative">
                 <label className={labelStyles}>Semester</label>
-                <div onClick={() => setIsSemesterOpen(!isSemesterOpen)} className={inputBaseStyles}>
-                    <GraduationCap className="absolute left-4 text-slate-500" size={20} />
-                    <span className={formData.semester ? "text-slate-900" : "text-slate-400 text-sm"}>
-                        {formData.semester || "Select Semester"}
-                    </span>
-                    <ChevronDown className={`text-slate-400 transition-transform ${isSemesterOpen ? 'rotate-180' : ''}`} size={18} />
-                </div>
+                <div onClick={() => setIsSemesterOpen(!isSemesterOpen)} 
+                  className={`${inputBaseStyles} ${errors.semester ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}>
+                  <GraduationCap className="absolute left-4 text-slate-500" size={20} />
+                  <span className={formData.semester ? "text-slate-900" : "text-slate-400 text-sm"}>
+                      {formData.semester || "Select Semester"}
+                  </span>
+                  <ChevronDown className={`text-slate-400 transition-transform ${isSemesterOpen ? 'rotate-180' : ''}`} size={18} />
+              </div>
+              {errors.semester && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.semester}</p>}
                 {isSemesterOpen && (
                     <div className={dropdownMenuStyles}>
                         {semesterList.map((sem) => (
-                            <div key={sem} onClick={() => { setFormData({...formData, semester: sem}); setIsSemesterOpen(false); setError(""); }}
+                            <div key={sem} onClick={() => { setFormData({...formData, semester: sem}); setIsSemesterOpen(false); setErrors({ ...errors, semester: null }); }}
                                 className="p-4 hover:bg-indigo-50 text-slate-700 font-medium cursor-pointer transition-colors border-b border-slate-50 last:border-0">
                                 {sem}
                             </div>
@@ -378,24 +405,40 @@ const Register = () => {
                 <label className={labelStyles}>University Email</label>
                 <div className="relative flex items-center text-slate-500">
                   <Mail className="absolute left-4" size={20} />
-                  <input type="email" required placeholder="name@students.jkuat.ac.ke" className={inputBaseStyles}
+                  <input 
+                    type="email" 
+                    required 
+                    placeholder="name@students.jkuat.ac.ke" 
+                    className={`${inputBaseStyles} ${errors.email ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value.toLowerCase()})} />
+                    onChange={(e) => {
+                      setFormData({...formData, email: e.target.value.toLowerCase()});
+                      if(errors.email) setErrors({...errors, email: null});
+                    }} 
+                  />
                 </div>
+                {errors.email && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.email}</p>}
               </div>
 
               <div className="space-y-1.5">
                 <label className={labelStyles}>Password</label>
                 <div className="relative flex items-center text-slate-500">
                   <Lock className="absolute left-4" size={20} />
-                  <input type={showPassword ? 'text' : 'password'} required placeholder="********" className={`${inputBaseStyles} pr-12`}
+                  <input type={showPassword ? 'text' : 'password'} required placeholder="********" 
+                    className={`${inputBaseStyles} pr-12 ${errors.password ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})} />
+                    onChange={(e) => {
+                      setFormData({...formData, password: e.target.value});
+                      if(errors.password) setErrors({...errors, password: null});
+                    }} 
+                  />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 text-slate-400 hover:text-indigo-600">
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
+                {errors.password && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.password}</p>}
               </div>
+              
 
               <button 
                 type="submit" 
@@ -444,9 +487,10 @@ const Register = () => {
                 </p>
             </div>
 
-            {error && (
-              <div className="bg-rose-50 text-rose-600 p-3 rounded-xl mb-4 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-widest">{error}</p>
+            {errors.general && (
+              <div className="bg-rose-50 border border-rose-200 text-rose-600 p-4 rounded-2xl mb-6 flex items-start gap-3 animate-in slide-in-from-top-2">
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                <p className="text-[11px] font-bold uppercase tracking-tight leading-tight">{errors.general}</p>
               </div>
             )}
 

@@ -8,7 +8,7 @@ const Login = () => {
   const [regNumber, setRegNumber] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState({});
 
   // --- FORGOT PASSWORD STATES ---
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -18,8 +18,28 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault(); 
-    setError(""); 
+    setErrors({}); 
+    let validationErrors = {};
 
+    // 1. Validation Checks
+    // 1. Validation Checks
+    const regNoPattern = /^[A-Z]{3}\d{3}-\d{4}\/\d{4}$/;
+    if (!regNumber.trim()) {
+      validationErrors.regNumber = "Registration number is required";
+    } else if (!regNoPattern.test(regNumber)) {
+      validationErrors.regNumber = "Invalid Format: Use SCT211-0001/2022";
+    }
+
+    if (!password) {
+      validationErrors.password = "Password is required";
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    // 2. API Call
     try {
       const credentials = { regNo: regNumber, password: password };
       const response = await loginStudent(credentials);
@@ -39,10 +59,19 @@ const Login = () => {
           }
         }, 100);
       } else {
-        setError("Login failed: Security token or account data missing.");
+        setErrors({ general: "Login failed: Security token or account data missing." });
       }
-    } catch (error) {
-      setError(error.response?.data?.message || "Invalid credentials or server is offline.");
+    } catch (err) {
+      const serverMsg = err.response?.data?.message || "Invalid credentials or server is offline.";
+      
+      // Route the error to the correct red border based on the backend message
+      if (serverMsg.toLowerCase().includes("password")) {
+        setErrors({ password: serverMsg });
+      } else if (serverMsg.toLowerCase().includes("account") || serverMsg.toLowerCase().includes("register") || serverMsg.toLowerCase().includes("not found")) {
+        setErrors({ regNumber: serverMsg });
+      } else {
+        setErrors({ general: serverMsg });
+      }
     }
   };
 
@@ -102,37 +131,53 @@ const Login = () => {
 
         <div className="w-full bg-white/70 backdrop-blur-2xl p-8 rounded-[40px] border border-white/40 shadow-2xl shadow-black/10 space-y-6">
           
-          {error && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-600 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+          {errors.general && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-600 p-4 rounded-2xl mb-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
               <AlertCircle size={18} className="shrink-0 mt-0.5" />
-              <p className="text-[11px] font-bold uppercase tracking-tight leading-tight">{error}</p>
+              <p className="text-[11px] font-bold uppercase tracking-tight leading-tight">{errors.general}</p>
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} noValidate className="space-y-5">
             <div className="space-y-1.5">
               <label className={labelStyles}>Registration Number</label>
               <div className="relative flex items-center">
                 <User className="absolute left-4 text-slate-500" size={20} />
-                <input type="text" required placeholder="AAA001-0001/2000" className={`${inputStyles} uppercase`}
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="AAA001-0001/2000" 
+                  className={`${inputStyles} uppercase ${errors.regNumber ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}
                   value={regNumber}
-                  onChange={(e) => { setRegNumber(e.target.value.toUpperCase()); if(error) setError(""); }}
+                  onChange={(e) => { 
+                    setRegNumber(e.target.value.toUpperCase()); 
+                    if(errors.regNumber) setErrors({...errors, regNumber: null}); 
+                  }}
                 />
               </div>
+              {errors.regNumber && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.regNumber}</p>}
             </div>
 
             <div className="space-y-1.5">
               <label className={labelStyles}>Password</label>
               <div className="relative flex items-center">
                 <Lock className="absolute left-4 text-slate-500" size={20} />
-                <input type={showPassword ? 'text' : 'password'} required placeholder="••••••••" className={`${inputStyles} pr-12`}
+                <input 
+                  type={showPassword ? 'text' : 'password'} 
+                  required 
+                  placeholder="••••••••" 
+                  className={`${inputStyles} pr-12 ${errors.password ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); if(error) setError(""); }}
+                  onChange={(e) => { 
+                    setPassword(e.target.value); 
+                    if(errors.password) setErrors({...errors, password: null}); 
+                  }}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 text-slate-400 hover:text-indigo-600 transition-colors">
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+              {errors.password && <p className="text-rose-600 text-[10px] font-bold mt-1 pl-1 uppercase">{errors.password}</p>}
             </div>
 
             {/* FIXED OVERLAPPING: Added relative z-10, py-1, and e.preventDefault() */}

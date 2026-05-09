@@ -113,7 +113,7 @@ const LecturerDashboard = () => {
     // 3. LIVE POLLING (Every 3 seconds)
     const fetchLiveCount = async () => {
       try {
-        const targetCode = selectedUnit?.unitCode || selectedUnit?.code;
+        const targetCode = selectedUnit?.unitCode || selectedUnit?.code; 
         if (!targetCode || !sessionId) return;
 
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/attendance/${targetCode}/${sessionId}`);
