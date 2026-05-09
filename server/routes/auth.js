@@ -115,7 +115,7 @@ router.post('/verify-otp', async (req, res) => {
 
         // 1. Find in the Staging Area
         const pending = await PendingStudent.findOne({ regNo });
-        if (!pending) return res.status(404).json({ message: "Registration session not found or expired." });
+        if (!pending) return res.status(404).json({ message: "OTP has expired." });
 
         // 2. Validate OTP
         if (pending.otp !== otp) return res.status(400).json({ message: "Invalid code." });

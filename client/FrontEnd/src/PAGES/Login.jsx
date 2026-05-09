@@ -10,6 +10,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   // --- FORGOT PASSWORD STATES ---
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -20,6 +21,7 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault(); 
     setErrors({}); 
+    setIsLoading(true);
     let validationErrors = {};
 
     // 1. Validation Checks
@@ -37,6 +39,7 @@ const Login = () => {
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      setIsLoading(false);
       return;
     }
 
@@ -73,6 +76,8 @@ const Login = () => {
       } else {
         setErrors({ general: serverMsg });
       }
+    } finally {
+      setIsLoading(false); // ALWAYS STOP LOADING AT THE END
     }
   };
 
@@ -205,9 +210,22 @@ const Login = () => {
               </button>
             </div>
 
-            <button type="submit" className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-gradient-to-r from-[#6366F1] via-[#8B5CF6] to-[#EC4899] text-white font-bold text-lg rounded-2xl shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all mt-2">
-              Log In
-              <LogIn size={20} />
+            <button 
+              disabled={isLoading} 
+              type="submit" 
+              className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-gradient-to-r from-[#6366F1] via-[#8B5CF6] to-[#EC4899] text-white font-bold text-lg rounded-2xl shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all mt-2 disabled:opacity-70"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  Waking up server...
+                </>
+              ) : (
+                <>
+                  Log In
+                  <LogIn size={20} />
+                </>
+              )}
             </button>
           </form>
 
