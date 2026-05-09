@@ -18,10 +18,12 @@ const API = axios.create({
 });
 
 // --- EXISTING REQUEST INTERCEPTOR (Surgical Fix for your storage logic) ---
+// --- EXISTING REQUEST INTERCEPTOR (Surgical Fix) ---
 API.interceptors.request.use((req) => {
-  const token = localStorage.getItem('token'); // Look for the separate 'token' key
+  const token = localStorage.getItem('token'); 
   if (token) {
-    req.headers.Authorization = `Bearer ${token}`;
+    // Use bracket notation for absolute certainty
+    req.headers['Authorization'] = `Bearer ${token}`; 
   }
   return req;
 });

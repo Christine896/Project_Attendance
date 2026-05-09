@@ -170,7 +170,8 @@ const Login = () => {
                 <Lock className="absolute left-4 text-slate-500" size={20} />
                 <input 
                   type={showPassword ? 'text' : 'password'} 
-                  required 
+                  required
+                  autoComplete="current-password" 
                   placeholder="••••••••" 
                   className={`${inputStyles} pr-12 ${errors.password ? 'border-rose-500 bg-rose-50' : 'border-slate-200'}`}
                   value={password}
