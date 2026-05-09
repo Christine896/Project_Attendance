@@ -187,11 +187,16 @@ const Login = () => {
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  // Enforce entering RegNo first
+                  const regNoPattern = /^[A-Z]{3}\d{3}-\d{4}\/\d{4}$/;
+                  
                   if (!regNumber.trim()) {
-                    setErrors({ regNumber: "Please enter your Registration Number first." });
+                    setErrors({ regNumber: "Please enter your Registration Number above." });
+                    return;
+                  } else if (!regNoPattern.test(regNumber)) {
+                    setErrors({ regNumber: "Invalid Format: Use SCT211-0001/2022" });
                     return;
                   }
+                  
                   setShowForgotModal(true);
                 }} 
                 className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer py-1"
@@ -230,7 +235,7 @@ const Login = () => {
                 </div>
                 <h2 className="text-xl font-black text-slate-900 tracking-tight">Recover Account</h2>
                 <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed px-2">
-                    Enter your university email to receive a password reset link.
+                    Confirm your Registration Number.
                 </p>
             </div>
 
@@ -254,7 +259,7 @@ const Login = () => {
 
                   <button disabled={forgotLoading} type="submit" 
                       className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50">
-                      {forgotLoading ? <Loader2 className="animate-spin" size={20} /> : "Confirm & Send Link"}
+                      {forgotLoading ? <Loader2 className="animate-spin" size={20} /> : "Send Link"}
                   </button>
               </form>
             )}

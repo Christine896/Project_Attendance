@@ -374,7 +374,8 @@ router.post('/forgot-password', async (req, res) => {
         const student = await Student.findOne({ regNo });
 
         if (!student) {
-            return res.status(200).json({ message: "If that ID exists, a reset link has been sent." });
+            // Throwing a 404 so the frontend modal catches it as an error
+            return res.status(404).json({ message: "Account not found. Please check your Registration Number." });
         }
 
         const resetToken = crypto.randomBytes(32).toString('hex');
