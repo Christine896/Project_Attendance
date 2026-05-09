@@ -102,7 +102,14 @@ const Dashboard = () => {
       setActiveSession(currentActiveUnit);
       setUpcomingUnits(upcomingList);
 
-      const notifRes = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/${savedUser._id}`);
+      // SURGICAL FIX: Attach the VIP token to the raw fetch request
+      const token = localStorage.getItem('token');
+      const notifRes = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/${savedUser._id}`, {
+          headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+          }
+      });
       
       // Check if this specific fetch failed due to session expiry
       if (notifRes.status === 401 || notifRes.status === 403) {
