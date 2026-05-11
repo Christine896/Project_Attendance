@@ -47,8 +47,16 @@ const Profile = () => {
   }, []);
 
   const handleLogout = () => {
+    // 1. Completely wipe the keys to the castle
     localStorage.removeItem('user');
-    navigate('/login'); // Fixed to route to /login instead of /
+    localStorage.removeItem('token');
+    
+    // Optional: Clear offline scans if you don't want them leaking to another user
+    // localStorage.removeItem('pending_scans'); 
+
+    // 2. Hard Redirect: This forces React to flush its memory completely 
+    // and replaces the history state so the "Back" button cannot return here.
+    window.location.replace('/login');
   };
 
   // MOCKUP: Password Update Logic

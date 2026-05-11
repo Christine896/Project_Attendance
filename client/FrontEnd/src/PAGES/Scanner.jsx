@@ -25,17 +25,8 @@ const Scanner = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(""); 
   const [zoomLevel, setZoomLevel] = useState(1); // Default to 1x
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
-
-  // The 3-second timer for the error/duplicate screen
-  useEffect(() => {
-    if (stopStream && scanStatus === 'error') {
-      const timer = setTimeout(() => {
-        navigate('/dashboard'); 
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [stopStream, scanStatus, navigate]);
 
   // --- UPDATED: MANUAL ZOOM CONTROL ---
   useEffect(() => {
@@ -60,6 +51,23 @@ const Scanner = () => {
     };
     applyZoom();
   }, [zoomLevel, stopStream]);
+
+  // SURGICAL FIX: Early permission check on load
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        () => { /* GPS is allowed, do nothing */ },
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            setPermissionDenied(true);
+            setStopStream(true);
+            setScanStatus("error");
+            setErrorMessage("Please enable Camera and GPS access in your device settings.");
+          }
+        }
+      );
+    }
+  }, []);
 
   const handleScan = async (err, result) => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -191,7 +199,17 @@ const Scanner = () => {
                       height: { ideal: 1080 } 
                     }}
                     onUpdate={handleScan}
-                    onError={() => setHasError(true)}
+                    // SURGICAL FIX: Catch the specific NotAllowedError
+                    onError={(err) => {
+                      if (err?.name === "NotAllowedError" || err?.message?.includes("Permission denied")) {
+                        setPermissionDenied(true);
+                        setStopStream(true);
+                        setScanStatus("error");
+                        setErrorMessage("Proxi requires Camera and GPS access to verify attendance. Please enable these in your device settings.");
+                      } else {
+                        setHasError(true);
+                      }
+                    }}
                   />
                   {isProcessing && (
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-50 transition-all">
@@ -268,11 +286,25 @@ const Scanner = () => {
         </div>
       )}
 
+      {/* SURGICAL FIX: Updated Error Screen with explicit action button */}
       {stopStream && scanStatus === 'error' && (
-        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-[#7DD3FC] via-[#CBD5E1] to-[#A5B4FC] flex items-center justify-center p-10 animate-in fade-in">
-          <p className="text-3xl font-black text-center text-indigo-900 leading-tight">
+        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-[#7DD3FC] via-[#CBD5E1] to-[#A5B4FC] flex flex-col items-center justify-center p-10 animate-in fade-in">
+          
+          <div className="w-16 h-16 bg-rose-500/10 text-rose-600 rounded-full flex items-center justify-center mb-6 shadow-inner border border-rose-500/20">
+            <XCircle size={32} />
+          </div>
+
+          <p className="text-xl font-black text-center text-indigo-950 leading-snug mb-10">
             {errorMessage}
           </p>
+
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="w-full max-w-[300px] flex items-center justify-center gap-2.5 py-3.5 bg-gradient-to-r from-[#6366F1] via-[#8B5CF6] to-[#EC4899] text-white font-bold text-lg rounded-2xl shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all"
+          >
+            Return to Dashboard
+          </button>
+
         </div>
       )}
 
