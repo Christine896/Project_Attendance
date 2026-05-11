@@ -8,7 +8,7 @@ export default defineConfig({
     react(), 
     tailwindcss(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoupdate',
       includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png'],
       workbox: {
         cleanupOutdatedCaches: true, // Forces deletion of old files

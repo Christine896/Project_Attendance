@@ -187,6 +187,22 @@ const LecturerHistory = () => {
         />
       </div>
 
+      {selectedUnit && !isLoading && (
+        <div className="relative z-10 mb-4 bg-blue-600/10 border border-blue-500/20 rounded-2xl p-4 flex items-center justify-between backdrop-blur-md shadow-sm">
+          <div>
+             <h2 className="text-lg font-black text-white uppercase tracking-widest drop-shadow-sm">
+               {selectedUnit.name || selectedUnit.unitName}
+             </h2>
+             <p className="text-blue-400 font-mono text-sm font-bold mt-1">
+               {selectedUnit.code || selectedUnit.unitCode}
+             </p>
+          </div>
+          <div className="px-3 py-1.5 bg-blue-500/20 text-blue-300 text-[10px] font-black rounded-lg uppercase tracking-widest border border-blue-500/20">
+             {filteredStudents.length} Records
+          </div>
+        </div>
+      )}
+
       <div className="relative z-10 flex-1 flex flex-col space-y-3 overflow-y-auto pr-1 pb-10">
         {!selectedUnit ? (
           <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-[40px] border border-white/10">
