@@ -282,7 +282,8 @@ router.post('/scan', verifyToken, async (req, res) => {
             unitId, 
             sessionId, 
             distance: Math.round(finalDistance), 
-            status: 'Present' 
+            status: 'Present', 
+            date: req.body.date || new Date()
         });
         
         await newRecord.save();

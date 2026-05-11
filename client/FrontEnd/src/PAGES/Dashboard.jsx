@@ -165,8 +165,8 @@ const Dashboard = () => {
         
         // Wait 1 second to ensure DB is done, then fetch the 100% truthful stats
         setTimeout(() => {
-          calculateAttendance(); 
-        }, 1000);
+          window.location.reload(); 
+        }, 2000);
 
       } else {
         localStorage.setItem('pending_scans', JSON.stringify(failedScans));

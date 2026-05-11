@@ -165,7 +165,7 @@ const Scanner = () => {
               studentId: user._id, unitCode: scannedUnitCode, unitName: scannedUnitName,
               unitId: data.unitId, sessionId: data.sessionId, distance: Math.round(distance),
               studentLat: sLat, studentLng: sLng, lecturerLat: lLat, lecturerLng: lLng,
-              offline: true 
+              offline: true, date: new Date()
             });
 
             localStorage.setItem('pending_scans', JSON.stringify(pending));
