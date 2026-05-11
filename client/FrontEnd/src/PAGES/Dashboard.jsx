@@ -25,6 +25,17 @@ const Dashboard = () => {
 
   useEffect(() => {
   const savedUser = JSON.parse(localStorage.getItem('user'));
+
+  // LOAD CACHE IMMEDIATELY FOR OFFLINE native-feel
+  const cachedStats = JSON.parse(localStorage.getItem('cached_stats') || '[]');
+  const cachedUnits = JSON.parse(localStorage.getItem('cached_units') || '[]');
+  if (cachedStats.length > 0) {
+    setUnitStats(cachedStats);
+    // Recalculate percentage from cache
+    let totalPossible = 0; let totalAttended = 0;
+    cachedStats.forEach(u => { totalPossible += u.totalSessions; totalAttended += u.attended; });
+    setPercentage(totalPossible > 0 ? Math.round((totalAttended/totalPossible)*100) : 0);
+  }
   
   if (savedUser) {
     // 1. Get the raw name (prioritize firstName, fallback to splitting fullName)
@@ -37,63 +48,46 @@ const Dashboard = () => {
 
   const calculateAttendance = async () => {
     try {
-      // 1. Fetch exact stats from our new backend route
       const statsRes = await getStudentStats(savedUser._id);
       const stats = statsRes.data;
-      setUnitStats(stats); // Save for the individual progress bars
+      setUnitStats(stats);
+      // CACHE 1: Individual Unit Progress
+      localStorage.setItem('cached_stats', JSON.stringify(stats));
 
-      // 2. Calculate the Big Hero Circle Total
-      let totalPossible = 0;
-      let totalAttended = 0;
-      
-      stats.forEach(unit => {
-        totalPossible += (unit.totalSessions || 0);
-        totalAttended += (unit.attended || 0);
-      });
-
-      const finalPercent = totalPossible > 0 ? Math.round((totalAttended / totalPossible) * 100) : 0;
-      setPercentage(finalPercent);
-
-      // 3. Active/Upcoming Discovery (Your existing time-based logic)
-      // 3. Active/Upcoming Discovery (Synced with your DB 'schedule' array)
       const unitsRes = await getAllUnits();
       const allUnits = unitsRes.data || [];
 
-      // THE BOUNCER: Only keep units that match the student's exact course
       const myCourseUnits = allUnits.filter(u => 
           u.course === savedUser.course && 
           u.semester === savedUser.semester
       );
+      // CACHE 2: Filtered Units for this student
+      localStorage.setItem('cached_units', JSON.stringify(myCourseUnits));
 
+      // ... keep your totalPossible/totalAttended logic exactly the same ...
+      let totalPossible = 0; let totalAttended = 0;
+      stats.forEach(unit => {
+        totalPossible += (unit.totalSessions || 0);
+        totalAttended += (unit.attended || 0);
+      });
+      const finalPercent = totalPossible > 0 ? Math.round((totalAttended / totalPossible) * 100) : 0;
+      setPercentage(finalPercent);
+
+      // ... keep your Time-Based Discovery logic exactly the same ...
       const today = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
-      // Forces 24-hour format "HH:MM" (e.g., "08:00") so math works perfectly
       const currentTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 
       let currentActiveUnit = null;
       let upcomingList = [];
 
       myCourseUnits.forEach(unit => {
-        // Skip if schedule is missing or empty
         if (!unit.schedule || !Array.isArray(unit.schedule)) return;
-
-        // Loop through the schedule array
         unit.schedule.forEach(session => {
           if (session.day === today) {
-            // Is the class happening RIGHT NOW?
             if (currentTime >= session.startTime && currentTime <= session.endTime) {
-              currentActiveUnit = {
-                ...unit,
-                unitName: unit.name, // Maps DB 'name' to UI
-                timeRange: `${session.startTime} - ${session.endTime}`
-              };
-            }
-            // Is the class UPCOMING today?
-            else if (currentTime < session.startTime) {
-              upcomingList.push({
-                ...unit,
-                unitName: unit.name,
-                timeRange: `${session.startTime} - ${session.endTime}`
-              });
+              currentActiveUnit = { ...unit, unitName: unit.name, timeRange: `${session.startTime} - ${session.endTime}` };
+            } else if (currentTime < session.startTime) {
+              upcomingList.push({ ...unit, unitName: unit.name, timeRange: `${session.startTime} - ${session.endTime}` });
             }
           }
         });
@@ -102,19 +96,12 @@ const Dashboard = () => {
       setActiveSession(currentActiveUnit);
       setUpcomingUnits(upcomingList);
 
-      // SURGICAL FIX: Attach the VIP token to the raw fetch request
-      // SURGICAL FIX: Use Axios API to automatically handle tokens and Local/Prod URLs
       const notifRes = await getNotifications(savedUser._id);
-      const notifData = notifRes.data;
-      
-      if (Array.isArray(notifData)) {
-        const hasUnreadAlerts = notifData.some(n => n.isRead === false);
-        setHasUnread(hasUnreadAlerts);
+      if (Array.isArray(notifRes.data)) {
+        setHasUnread(notifRes.data.some(n => n.isRead === false));
       }
 
     } catch (err) {
-      // --- THE SESSION KICKER ---
-      // If the API returns 401 (Unauthorized) or 403 (Forbidden), the token is dead
       if (err.response?.status === 401 || err.response?.status === 403) {
         localStorage.clear();
         navigate('/login?message=Session expired. Please log in again.');
@@ -169,7 +156,8 @@ const Dashboard = () => {
         localStorage.removeItem('pending_scans');
         setPendingScans([]);
         showToast("All offline records synced successfully!", "success");
-        setTimeout(() => window.location.reload(), 2000); 
+        // SURGICAL FIX: Automatically refresh the data without a full page reload
+        calculateAttendance(); 
       } else {
         localStorage.setItem('pending_scans', JSON.stringify(failedScans));
         setPendingScans(failedScans);

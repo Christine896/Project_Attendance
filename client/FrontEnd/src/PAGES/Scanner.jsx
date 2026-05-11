@@ -88,7 +88,15 @@ const Scanner = () => {
         const rawText = result.text.trim();
         data = JSON.parse(rawText);
         
-        // SURGICAL FIX: Accept EITHER "code" OR "unitCode", plus the sessionId
+        // SURGICAL FIX: The Offline Course Bouncer
+        // Compares scanned course to the student's course in memory
+        if (data.course && data.course !== user.course) {
+           setErrorMessage(`Invalid Course: This unit belongs to ${data.course}, not ${user.course}.`);
+           setScanStatus("error");
+           setStopStream(true);
+           return;
+        }
+
         if (!(data.code || data.unitCode) || !data.sessionId) {
           throw new Error("Invalid Format");
         }
