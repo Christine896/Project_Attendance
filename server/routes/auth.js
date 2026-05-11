@@ -253,18 +253,20 @@ router.post('/scan', verifyToken, async (req, res) => {
         }
 
         // 🚨 SECURITY CHECK 3: Geofencing (SMART FIX FOR OFFLINE SYNC)
+        // 🚨 SECURITY CHECK 3: Geofencing (SMART FIX FOR OFFLINE SYNC)
         let finalDistance = 0;
 
-        // If it's a live scan, we recalculate. If it's an offline sync, we use the preCalculatedDistance
-        if (lecturerLat && lecturerLng && studentLat && studentLng) {
+        // SURGICAL FIX: If the frontend sends an offline preCalculatedDistance, TRUST IT.
+        // Otherwise, manually calculate it for live online scans.
+        if (preCalculatedDistance !== undefined) {
+            finalDistance = Number(preCalculatedDistance); 
+        } else if (lecturerLat && lecturerLng && studentLat && studentLng) {
             finalDistance = calculateDistance(Number(lecturerLat), Number(lecturerLng), Number(studentLat), Number(studentLng));
-        } else if (preCalculatedDistance !== undefined) {
-            finalDistance = Number(preCalculatedDistance); // Trust the offline geofence calculation
         } else {
             return res.status(400).json({ message: "No valid location data provided." });
         }
 
-        if (finalDistance > 2850) {
+        if (finalDistance > 150) {
             return res.status(403).json({ message: `Too far! (${Math.round(finalDistance)}m away)` });
         }
 
@@ -283,7 +285,7 @@ router.post('/scan', verifyToken, async (req, res) => {
             sessionId, 
             distance: Math.round(finalDistance), 
             status: 'Present', 
-            date: req.body.date || new Date()
+            date: req.body.date ? new Date(req.body.date) : new Date()
         });
         
         await newRecord.save();

@@ -149,25 +149,22 @@ const LecturerDashboard = () => {
     
     navigator.geolocation.getCurrentPosition(
       async (position) => { 
+        // 1. SURGICAL FIX: Initialize newSessionId FIRST so it's available immediately
+        const newSessionId = Date.now().toString(); 
+        
+        const coords = { 
+          lat: position.coords.latitude, 
+          lng: position.coords.longitude 
+        };
+
        try {
             await API.post(`/api/auth/lecturer/session`, {
                 unitCode: selectedUnit?.unitCode || selectedUnit?.code,
                 unitName: selectedUnit?.unitName || selectedUnit?.name,
                 sessionId: newSessionId
             });
-        } catch (err) {
-          console.error("Failed to increment session count", err);
-        }
-
-        const coords = { 
-          lat: position.coords.latitude, 
-          lng: position.coords.longitude 
-        };
-        
-        const newSessionId = Date.now().toString(); 
-        
-        // --- NEW: SEND MASTER ANCHOR TO BACKEND ---
-        try {
+            
+            // --- NEW: SEND MASTER ANCHOR TO BACKEND ---
             await API.post(`/api/auth/lecturer/session`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -177,8 +174,9 @@ const LecturerDashboard = () => {
                     sessionId: newSessionId
                 })
             });
+
         } catch (err) {
-            console.error("Failed to anchor session to backend", err);
+          console.error("Failed to anchor session", err);
         }
 
         setSessionId(newSessionId);
@@ -187,7 +185,6 @@ const LecturerDashboard = () => {
         
         const expiry = Date.now() + 10 * 60 * 1000; 
         
-        // CRITICAL FIX: Added sessionId here so the ClassList page can find it!
         localStorage.setItem('activeSession', JSON.stringify({ 
           unit: selectedUnit, 
           expiry, 

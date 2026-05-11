@@ -8,7 +8,7 @@ export default defineConfig({
     react(), 
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png'], // Matches your icon names
       manifest: {
         name: 'Proxi Attendance System',

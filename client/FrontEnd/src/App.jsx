@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, Routes, Route, Navigate } from 'react-router-dom'; 
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import Landing from './PAGES/Landing';
 import Login from './PAGES/Login';
@@ -36,24 +37,51 @@ const ProtectedLecturerRoute = ({ children }) => {
 };
 
 function App() {
-  const navigate = useNavigate(); // This will now work!
+  const navigate = useNavigate();
+
+  // --- SURGICAL FIX: Service Worker Update Listener ---
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) { console.log('SW Registered'); },
+    onRegisterError(error) { console.log('SW registration error', error); },
+  });
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     
     if (savedUser) {
         const user = JSON.parse(savedUser);
-        
-        // ONLY redirect if you land on the root "/" 
-        // This lets you type /login, /register, or /add-unit manually without getting kicked!
         if (window.location.pathname === '/') {
             navigate(user.role === 'lecturer' ? '/lecturer-dashboard' : '/dashboard');
         }
     }
-}, [navigate]);
+  }, [navigate]);
 
  return (
-    <div className="App">
+    <div className="App relative">
+      
+      {/* --- SURGICAL FIX: The Global Update Prompt UI --- */}
+      {needRefresh && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999] bg-indigo-950 text-white px-6 py-5 rounded-[24px] shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/20 flex flex-col items-center gap-4 w-[90%] max-w-sm animate-in slide-in-from-bottom-10 fade-in duration-500">
+          <p className="font-black text-sm text-center tracking-tight text-blue-100">A new version of Proxi is available!</p>
+          <div className="flex gap-3 w-full">
+            <button 
+              onClick={() => updateServiceWorker(true)} 
+              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-3 rounded-xl text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95"
+            >
+              Update Now
+            </button>
+            <button 
+              onClick={() => setNeedRefresh(false)} 
+              className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl text-[10px] uppercase tracking-widest transition-all active:scale-95"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
