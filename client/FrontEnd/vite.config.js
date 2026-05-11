@@ -9,7 +9,12 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png'], // Matches your icon names
+      includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png'],
+      workbox: {
+        cleanupOutdatedCaches: true, // Forces deletion of old files
+        skipWaiting: true,           // Forces the new SW to install immediately
+        clientsClaim: true,          // Forces the new SW to take control of the page
+      },
       manifest: {
         name: 'Proxi Attendance System',
         short_name: 'Proxi',
