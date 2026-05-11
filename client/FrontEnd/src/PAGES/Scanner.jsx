@@ -52,6 +52,15 @@ const Scanner = () => {
     applyZoom();
   }, [zoomLevel, stopStream]);
 
+  useEffect(() => {
+    if (stopStream && (scanStatus === 'success' || scanStatus === 'offline_success')) {
+      const timer = setTimeout(() => {
+        navigate('/dashboard'); 
+      }, 6000); // 6000 milliseconds = 6 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [stopStream, scanStatus, navigate]);
+
   // SURGICAL FIX: Early permission check on load
   useEffect(() => {
     if (navigator.geolocation) {
@@ -111,12 +120,17 @@ const Scanner = () => {
           lLat = Number(data.lat);
           lLng = Number(data.lng);
           
+          setScannedData({
+            unitCode: scannedUnitCode,
+            unitName: scannedUnitName
+          });
+
           sLat = position.coords.latitude;
           sLng = position.coords.longitude;
           distance = getDistance(lLat, lLng, sLat, sLng);
 
           // 1. Check Geofence
-          if (distance > 2850) {
+          if (distance > 150) {
             throw new Error(`Too Far! You are ${Math.round(distance)}m away.`);
           }
 
