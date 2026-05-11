@@ -62,7 +62,7 @@ const Scanner = () => {
             setPermissionDenied(true);
             setStopStream(true);
             setScanStatus("error");
-            setErrorMessage("Please enable Camera and GPS access in your device settings.");
+            setErrorMessage("Please enable location access in your device settings.");
           }
         }
       );
@@ -205,7 +205,7 @@ const Scanner = () => {
                         setPermissionDenied(true);
                         setStopStream(true);
                         setScanStatus("error");
-                        setErrorMessage("Proxi requires Camera and GPS access to verify attendance. Please enable these in your device settings.");
+                        setErrorMessage("Please enable camera permisisons in your device settings.");
                       } else {
                         setHasError(true);
                       }
@@ -286,7 +286,7 @@ const Scanner = () => {
         </div>
       )}
 
-      {/* SURGICAL FIX: Updated Error Screen with explicit action button */}
+      {/* SURGICAL FIX: Updated Error Screen with explicit action button and larger font */}
       {stopStream && scanStatus === 'error' && (
         <div className="fixed inset-0 z-[100] bg-gradient-to-br from-[#7DD3FC] via-[#CBD5E1] to-[#A5B4FC] flex flex-col items-center justify-center p-10 animate-in fade-in">
           
@@ -294,7 +294,8 @@ const Scanner = () => {
             <XCircle size={32} />
           </div>
 
-          <p className="text-xl font-black text-center text-indigo-950 leading-snug mb-10">
+          {/* INCREASED FONT SIZE: Changed text-xl to text-3xl */}
+          <p className="text-3xl font-black text-center text-indigo-950 leading-snug mb-10">
             {errorMessage}
           </p>
 
