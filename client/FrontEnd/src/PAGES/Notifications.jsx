@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import API from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, CheckCircle2, AlertTriangle, BellRing, MailCheck, Loader2
@@ -21,8 +22,8 @@ const Notifications = () => {
       fetchedOnce.current = true; 
 
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/${user._id}`);
-        const data = await res.json();
+        const res = await API.get(`/api/auth/notifications/${user._id}`);
+        const data = res.data;
         
         const formatted = data.map(n => ({
           id: n._id,
@@ -39,9 +40,7 @@ const Notifications = () => {
 
         // 2. Mark them read in the backend silently
         if (data.some(n => n.isRead === false)) {
-          await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/mark-read/${user._id}`, {
-            method: 'PUT'
-          });
+          await API.put(`/api/auth/notifications/mark-read/${user._id}`);
         }
 
       } catch (err) {
@@ -56,9 +55,7 @@ const Notifications = () => {
     if (!user) return;
     try {
       // Tell backend to mark read
-      await fetch(`${import.meta.env.VITE_API_URL}/api/auth/notifications/mark-read/${user._id}`, {
-          method: 'PUT'
-      });
+      await API.put(`/api/auth/notifications/mark-read/${user._id}`);
       // Update UI
       const updated = notifications.map(n => ({ ...n, status: 'read' }));
       setNotifications(updated);

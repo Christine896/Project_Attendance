@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, Search, Calendar, Clock, CheckCircle2, 
@@ -20,8 +21,8 @@ const History = () => {
         if (!user) return;
 
         // Calls the route you already built in auth.js!
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/history/${user._id}`);
-        const data = await response.json();
+        const response = await API.get(`/api/auth/history/${user._id}`);
+        const data = response.data;
 
         if (Array.isArray(data)) {
           // Map MongoDB schema to your UI state

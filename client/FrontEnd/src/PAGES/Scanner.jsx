@@ -73,27 +73,50 @@ const Scanner = () => {
     const user = JSON.parse(localStorage.getItem('user'));
 
     if (result?.text && !stopStream && !isProcessing) {
-      setIsProcessing(true); // Always show the loader first
+      // SURGICAL FIX 1: Verify the QR Code BEFORE doing anything else
+      let data;
+      try {
+        const rawText = result.text.trim();
+        data = JSON.parse(rawText);
+        
+        // Ensure it's actually a Proxi QR code and not a Spotify link
+        if (!data.unitCode || !data.sessionId) {
+          throw new Error("Invalid Format");
+        }
+      } catch (parseError) {
+        setErrorMessage("Invalid QR Code. This is not a recognized Proxi attendance code.");
+        setScanStatus("error");
+        setStopStream(true);
+        return; // Stop immediately, no infinite spinner!
+      }
 
-      // We ALWAYS try to get the location first, even if offline
+      // If we reach here, the QR code is 100% valid. Now start processing.
+      setIsProcessing(true);
+
       navigator.geolocation.getCurrentPosition(async (position) => {
-        let data, scannedUnitCode, scannedUnitName, distance, sLat, sLng, lLat, lLng;
+        let scannedUnitCode, scannedUnitName, distance, sLat, sLng, lLat, lLng;
         
         try {
-          const rawText = result.text.trim();
-          data = JSON.parse(rawText);
-          
+          // SURGICAL FIX 2: Check GPS Accuracy (Test 8)
+          // position.coords.accuracy is measured in meters.
+          if (position.coords.accuracy > 100) {
+             setErrorMessage("GPS signal too weak. Please move closer to a window or an open area and try again.");
+             setScanStatus("error");
+             setStopStream(true);
+             setIsProcessing(false);
+             return;
+          }
+
           scannedUnitCode = data.code || data.unitCode;
           scannedUnitName = data.name || data.unitName;
           lLat = Number(data.lat);
           lLng = Number(data.lng);
           
-          // CAPTURE THE LOCATION HERE
           sLat = position.coords.latitude;
           sLng = position.coords.longitude;
           distance = getDistance(lLat, lLng, sLat, sLng);
 
-          // 1. Check Geofence first (even if offline!)
+          // 1. Check Geofence
           if (distance > 2850) {
             throw new Error(`Too Far! You are ${Math.round(distance)}m away.`);
           }
@@ -113,7 +136,7 @@ const Scanner = () => {
           setIsProcessing(false);
 
         } catch (e) {
-          // 3. OFFLINE FALLBACK: If the API failed but we have a valid location
+          // 3. OFFLINE FALLBACK
           if (!navigator.onLine || e.message === "Timeout" || !e.response) {
             const pending = JSON.parse(localStorage.getItem('pending_scans') || '[]');
             
@@ -121,7 +144,7 @@ const Scanner = () => {
               studentId: user._id, unitCode: scannedUnitCode, unitName: scannedUnitName,
               unitId: data.unitId, sessionId: data.sessionId, distance: Math.round(distance),
               studentLat: sLat, studentLng: sLng, lecturerLat: lLat, lecturerLng: lLng,
-              offline: true // Mark as offline for the lecturer's records
+              offline: true 
             });
 
             localStorage.setItem('pending_scans', JSON.stringify(pending));
@@ -131,21 +154,20 @@ const Scanner = () => {
             return;
           }
 
-          // Handle real errors (Too far, Expired QR)
           setErrorMessage(e.response?.data?.message || e.message);
           setScanStatus("error");
           setStopStream(true);
+          setIsProcessing(false); // Make sure spinner stops on API error
         }
       }, (geoErr) => {
-        // If GPS fails completely, we cannot allow the scan
         setIsProcessing(false);
         setScanStatus("error");
         setErrorMessage("Location Required: Please enable GPS and try again.");
         setStopStream(true);
       }, { 
         enableHighAccuracy: true, 
-        timeout: 8000,      // Give GPS 8 seconds to find satellites
-        maximumAge: 600000 // IMPORTANT: Allow using a location found in the last 10 mins
+        timeout: 8000,      
+        maximumAge: 600000 
       });
     }
   };
@@ -205,7 +227,7 @@ const Scanner = () => {
                         setPermissionDenied(true);
                         setStopStream(true);
                         setScanStatus("error");
-                        setErrorMessage("Please enable camera permisisons in your device settings.");
+                        setErrorMessage("Please enable camera permission in your device settings.");
                       } else {
                         setHasError(true);
                       }
