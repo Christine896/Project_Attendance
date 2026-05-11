@@ -64,19 +64,18 @@ const Dashboard = () => {
       // CACHE 2: Filtered Units for this student
       localStorage.setItem('cached_units', JSON.stringify(myCourseUnits));
 
-      // --- AREA A: TRUTHFUL TOTAL CALCULATION ---
+      // --- AREA A: PURE TRUTHFUL CALCULATION ---
       let totalPossible = 0;
       let totalAttended = 0;
       
       stats.forEach(unit => {
-        // TRUTHFUL MATH: If attended is 5 but DB says total is 4, we use 5.
-        const sessionsCount = Math.max(unit.totalSessions || 0, unit.attended || 0);
-        totalPossible += sessionsCount;
+        // Backend is now perfectly truthful, just use the raw numbers
+        totalPossible += (unit.totalSessions || 0);
         totalAttended += (unit.attended || 0);
       });
 
       const finalPercent = totalPossible > 0 ? Math.round((totalAttended / totalPossible) * 100) : 0;
-      setPercentage(Math.min(100, finalPercent)); // Capping at 100%
+      setPercentage(Math.min(100, finalPercent));
 
       // Update local cache with the latest data
       localStorage.setItem('cached_stats', JSON.stringify(stats));
@@ -147,11 +146,12 @@ const Dashboard = () => {
           await logAttendance(cleanData);
           
         } catch (err) {
-          // --- SURGICAL FIX 1: CLEARING THE STUCK BAR ---
-          // If !err.response, the internet dropped. Keep it to try later.
-          // If err.response exists, the server rejected it (wrong course, duplicate).
-          // We intentionally DO NOT push it to failedScans. We let it get deleted.
-          if (!err.response) {
+          // --- SURGICAL FIX: CLEARING THE STUCK BAR ---
+          const status = err?.response?.status;
+          
+          // If NO status (Network dropped) or 500+ (Server crash), keep the scan.
+          // If status is 400 (duplicate) or 403 (wrong course), THROW IT IN THE TRASH.
+          if (!status || status >= 500) {
             failedScans.push(scan);
           }
         }
@@ -161,11 +161,9 @@ const Dashboard = () => {
       if (failedScans.length === 0) {
         localStorage.removeItem('pending_scans');
         setPendingScans([]);
-        showToast("All offline records synced successfully!", "success");
+        showToast("All offline records synced successfully!", "success"); // Always shows success
         
-        // --- SURGICAL FIX 2: THE 8/13 RACE CONDITION ---
-        // Give the database exactly 1 second to finish saving the new session
-        // before we ask it for the updated stats. This ensures 8/13 instead of 8/12.
+        // Wait 1 second to ensure DB is done, then fetch the 100% truthful stats
         setTimeout(() => {
           calculateAttendance(); 
         }, 1000);
@@ -269,8 +267,8 @@ const Dashboard = () => {
         
         <div className="flex overflow-x-auto gap-4 pb-2 snap-x snap-mandatory hide-scrollbar -mx-5 px-5">
           {unitStats.map((stat, idx) => {
-            // --- AREA B: TRUTHFUL LABELS ---
-            const sessionsCount = Math.max(stat.totalSessions || 0, stat.attended || 0);
+            // --- AREA B: PURE TRUTHFUL LABELS ---
+            const sessionsCount = stat.totalSessions || 0;
             const unitPercent = sessionsCount > 0 
               ? Math.min(100, Math.round((stat.attended / sessionsCount) * 100)) 
               : 0;
