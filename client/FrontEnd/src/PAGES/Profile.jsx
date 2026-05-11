@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import API from '../services/api';
 import { 
   ChevronLeft, Mail, BookOpen, LogOut, GraduationCap, Lock, CircleUser, Building2, X, Loader2, Eye, EyeOff 
 } from 'lucide-react';
@@ -68,17 +69,13 @@ const Profile = () => {
     try {
       const savedUser = JSON.parse(localStorage.getItem('user'));
       
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/change-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          studentId: savedUser._id, 
-          currentPassword, 
-          newPassword 
-        })
+      const res = await API.post(`/api/auth/change-password`, { 
+        studentId: savedUser._id, 
+        currentPassword, 
+        newPassword 
       });
 
-      const data = await res.json();
+      const data = res.data;
       if (!res.ok) throw new Error(data.message);
 
       setModalSuccess(true);

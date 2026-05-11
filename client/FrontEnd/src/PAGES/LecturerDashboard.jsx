@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { QRCodeSVG } from 'qrcode.react'; 
+import { QRCodeSVG } from 'qrcode.react';
+import API from '../services/api'; 
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, LogOut, RotateCcw, Clock, ShieldCheck, 
@@ -69,9 +70,8 @@ const LecturerDashboard = () => {
     if (showQR && selectedUnit) {
       const fetchTotal = async () => {
         try {
-           const expectedRes = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/expected-students/${selectedUnit.course}/${selectedUnit.semester}`);
-           const expectedData = await expectedRes.json();
-           setTotalExpected(expectedData.length || 0);
+           const expectedRes = await API.get(`/api/auth/expected-students/${selectedUnit.course}/${selectedUnit.semester}`);
+           setTotalExpected(expectedRes.data.length || 0);
         } catch(e) { console.error("Failed to fetch expected count", e); }
       }
       fetchTotal();
@@ -116,8 +116,8 @@ const LecturerDashboard = () => {
         const targetCode = selectedUnit?.unitCode || selectedUnit?.code; 
         if (!targetCode || !sessionId) return;
 
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/attendance/${targetCode}/${sessionId}`);
-        const data = await response.json();
+        const response = await API.get(`/api/auth/lecturer/attendance/${targetCode}/${sessionId}`);
+        const data = response.data;
         
         if (Array.isArray(data)) {
           setScannedCount(data.length); 
@@ -149,8 +149,12 @@ const LecturerDashboard = () => {
     
     navigator.geolocation.getCurrentPosition(
       async (position) => { 
-        try {
-          await incrementUnitSession(selectedUnit._id || selectedUnit.id);
+       try {
+            await API.post(`/api/auth/lecturer/session`, {
+                unitCode: selectedUnit?.unitCode || selectedUnit?.code,
+                unitName: selectedUnit?.unitName || selectedUnit?.name,
+                sessionId: newSessionId
+            });
         } catch (err) {
           console.error("Failed to increment session count", err);
         }
@@ -164,7 +168,7 @@ const LecturerDashboard = () => {
         
         // --- NEW: SEND MASTER ANCHOR TO BACKEND ---
         try {
-            await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/session`, {
+            await API.post(`/api/auth/lecturer/session`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

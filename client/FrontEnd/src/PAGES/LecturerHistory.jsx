@@ -7,6 +7,7 @@ import {
   History as HistoryIcon 
 } from 'lucide-react';
 import { getAllUnits } from '../services/api';
+import API from '../services/api';
 
 const LecturerHistory = () => {
   const navigate = useNavigate();
@@ -41,8 +42,8 @@ const LecturerHistory = () => {
     const fetchHistory = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/unit-history/${selectedUnit.code}`);
-        const data = await response.json();
+       const response = await API.get(`/api/auth/lecturer/unit-history/${selectedUnit.code}`);
+      const data = response.data;
         
         if (data.students) setHistoryData(data.students);
         

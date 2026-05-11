@@ -1,6 +1,7 @@
 //lecturer attendance
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import API from '../services/api';
 import { 
   ChevronLeft, Download, Search, CheckCircle2, ShieldCheck, QrCode, LogOut,
   User, Users, FileSpreadsheet, Loader2, UserMinus, UserPlus 
@@ -32,8 +33,8 @@ const LecturerReports = () => {
           const course = targetSession.unit.course;
           const semester = targetSession.unit.semester;
           
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/expected-students/${course}/${semester}`);
-          const data = await response.json();
+          const response = await API.get(`/api/auth/expected-students/${course}/${semester}`);
+          const data = response.data;
           if (Array.isArray(data)) setExpectedStudents(data);
         } catch (err) {
           console.error("Master roster fetch failed:", err);
@@ -65,9 +66,8 @@ const LecturerReports = () => {
         const code = targetSession.unit.unitCode || targetSession.unit.code;
         const sessionId = targetSession.sessionId;
 
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/attendance/${code}/${sessionId}`);
-        const data = await response.json();
-
+        const response = await API.get(`/api/auth/lecturer/attendance/${code}/${sessionId}`);
+        const data = response.data;
         if (Array.isArray(data)) {
           setAttendanceData(data);
         }
@@ -145,22 +145,16 @@ const LecturerReports = () => {
     };
 
     try {
-        // 1. Send the manual toggle to the database
-        await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/attendance/toggle`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        // 1. SURGICAL FIX: Use API.post to bypass the bouncer
+        await API.post(`/api/auth/lecturer/attendance/toggle`, payload);
 
-        // 2. THE FIX: Force the UI to fetch the updated data immediately
-        // This ensures the button works even after the session ends!
+        // 2. Refresh the list using API.get
         const code = targetSession.unit.unitCode || targetSession.unit.code;
         const sessionId = targetSession.sessionId;
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lecturer/attendance/${code}/${sessionId}`);
-        const data = await response.json();
+        const response = await API.get(`/api/auth/lecturer/attendance/${code}/${sessionId}`);
         
-        if (Array.isArray(data)) {
-            setAttendanceData(data); // Instantly updates the screen
+        if (Array.isArray(response.data)) {
+            setAttendanceData(response.data); 
         }
 
     } catch (err) {
