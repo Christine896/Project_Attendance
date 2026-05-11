@@ -297,18 +297,27 @@ router.post('/scan', verifyToken, async (req, res) => {
 // ==========================================
 // 4. LECTURER ROUTES
 // ==========================================
-// ==========================================
-// 4. LECTURER ROUTES
-// ==========================================
 router.post('/lecturer/session', verifyToken, async (req, res) => {
     try {
-        // SURGICAL FIX: Explicitly set the date so the History Route can instantly generate "Absent" tickets
-        const { unitCode, unitName, sessionId } = req.body;
-        await ClassSession.create({ unitCode, unitName, sessionId, date: new Date() });
-        res.status(201).json({ message: "Session Anchored successfully" });
-    } catch (error) { res.status(500).json({ message: "Failed to anchor session" }); }
-});
+        // --- SURGICAL FIX: The Payload Safety Net ---
+        // Ensures the session saves properly so the "Absent" history works!
+        let data = req.body;
+        if (data.body && typeof data.body === 'string') {
+            data = JSON.parse(data.body); // Catches nested stringified payloads
+        }
+        
+        const { unitCode, unitName, sessionId } = data;
 
+        if (unitCode && sessionId) {
+            await ClassSession.create({ unitCode, unitName, sessionId, date: new Date() });
+        }
+        
+        res.status(201).json({ message: "Session Anchored successfully" });
+    } catch (error) { 
+        console.error("Session Error:", error);
+        res.status(500).json({ message: "Failed to anchor session" }); 
+    }
+});
 router.get('/lecturer/attendance/:unitCode/:sessionId', verifyToken, async (req, res) => {
     try {
         const list = await Attendance.find({ unitCode: req.params.unitCode, sessionId: req.params.sessionId }).populate('student', 'firstName lastName regNo');
