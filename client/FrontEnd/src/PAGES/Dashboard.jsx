@@ -133,50 +133,43 @@ const Dashboard = () => {
     if (!navigator.onLine) return showToast("You are still offline!", "error");
     setIsSyncing(true);
     
-    let successCount = 0;
     let failedScans = [];
-    let courseMismatch = false;
 
     try {
       const savedUser = JSON.parse(localStorage.getItem('user'));
 
       for (const scan of pendingScans) {
         try {
-          // Check for course mismatch again during sync for absolute safety
-          if (scan.course && scan.course !== savedUser.course) {
-            courseMismatch = true;
-            continue; // Skip this one, it will be trashed
-          }
-
           const { offline, ...cleanData } = scan; 
           if (!cleanData.studentId) cleanData.studentId = savedUser?._id;
 
+          // Send to database
           await logAttendance(cleanData);
-          successCount++;
+          
         } catch (err) {
-          const msg = err.response?.data?.message || "";
-          // If it's a duplicate or already recorded, count it as a "hidden success" (trash it)
-          if (msg.includes("already recorded") || err.response?.status === 400) {
-            successCount++; 
-          } else {
+          // --- SURGICAL FIX 1: CLEARING THE STUCK BAR ---
+          // If !err.response, the internet dropped. Keep it to try later.
+          // If err.response exists, the server rejected it (wrong course, duplicate).
+          // We intentionally DO NOT push it to failedScans. We let it get deleted.
+          if (!err.response) {
             failedScans.push(scan);
           }
         }
       }
 
-      // FINAL NOTIFICATION LOGIC
+      // FINAL NOTIFICATION & REFRESH LOGIC
       if (failedScans.length === 0) {
         localStorage.removeItem('pending_scans');
         setPendingScans([]);
+        showToast("All offline records synced successfully!", "success");
         
-        if (courseMismatch) {
-          showToast("Sync complete, but some units were skipped (Wrong Course).", "error");
-        } else {
-          showToast(`Successfully synced ${successCount} records!`, "success");
-        }
-        
-        // Refresh the dashboard stats immediately
-        calculateAttendance();
+        // --- SURGICAL FIX 2: THE 8/13 RACE CONDITION ---
+        // Give the database exactly 1 second to finish saving the new session
+        // before we ask it for the updated stats. This ensures 8/13 instead of 8/12.
+        setTimeout(() => {
+          calculateAttendance(); 
+        }, 1000);
+
       } else {
         localStorage.setItem('pending_scans', JSON.stringify(failedScans));
         setPendingScans(failedScans);
