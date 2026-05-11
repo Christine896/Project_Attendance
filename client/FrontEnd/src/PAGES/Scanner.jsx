@@ -79,8 +79,8 @@ const Scanner = () => {
         const rawText = result.text.trim();
         data = JSON.parse(rawText);
         
-        // Ensure it's actually a Proxi QR code and not a Spotify link
-        if (!data.unitCode || !data.sessionId) {
+        // SURGICAL FIX: Accept EITHER "code" OR "unitCode", plus the sessionId
+        if (!(data.code || data.unitCode) || !data.sessionId) {
           throw new Error("Invalid Format");
         }
       } catch (parseError) {
@@ -89,7 +89,6 @@ const Scanner = () => {
         setStopStream(true);
         return; // Stop immediately, no infinite spinner!
       }
-
       // If we reach here, the QR code is 100% valid. Now start processing.
       setIsProcessing(true);
 
