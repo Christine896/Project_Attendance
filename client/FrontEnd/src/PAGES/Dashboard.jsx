@@ -64,14 +64,23 @@ const Dashboard = () => {
       // CACHE 2: Filtered Units for this student
       localStorage.setItem('cached_units', JSON.stringify(myCourseUnits));
 
-      // ... keep your totalPossible/totalAttended logic exactly the same ...
-      let totalPossible = 0; let totalAttended = 0;
+      // --- AREA A: TRUTHFUL TOTAL CALCULATION ---
+      let totalPossible = 0;
+      let totalAttended = 0;
+      
       stats.forEach(unit => {
-        totalPossible += (unit.totalSessions || 0);
+        // TRUTHFUL MATH: If attended is 5 but DB says total is 4, we use 5.
+        const sessionsCount = Math.max(unit.totalSessions || 0, unit.attended || 0);
+        totalPossible += sessionsCount;
         totalAttended += (unit.attended || 0);
       });
+
       const finalPercent = totalPossible > 0 ? Math.round((totalAttended / totalPossible) * 100) : 0;
-      setPercentage(finalPercent);
+      setPercentage(Math.min(100, finalPercent)); // Capping at 100%
+
+      // Update local cache with the latest data
+      localStorage.setItem('cached_stats', JSON.stringify(stats));
+      localStorage.setItem('cached_units', JSON.stringify(myCourseUnits));
 
       // ... keep your Time-Based Discovery logic exactly the same ...
       const today = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
@@ -121,53 +130,65 @@ const Dashboard = () => {
   }, []);
 
   const handleSyncOffline = async () => {
-    if (!navigator.onLine) return showToast("You are still offline!", "error"); // CHANGED
+    if (!navigator.onLine) return showToast("You are still offline!", "error");
     setIsSyncing(true);
     
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    const failedScans = [];
-    const savedUser = JSON.parse(localStorage.getItem('user'));
+    let successCount = 0;
+    let failedScans = [];
+    let courseMismatch = false;
 
     try {
+      const savedUser = JSON.parse(localStorage.getItem('user'));
+
       for (const scan of pendingScans) {
         try {
+          // Check for course mismatch again during sync for absolute safety
+          if (scan.course && scan.course !== savedUser.course) {
+            courseMismatch = true;
+            continue; // Skip this one, it will be trashed
+          }
+
           const { offline, ...cleanData } = scan; 
           if (!cleanData.studentId) cleanData.studentId = savedUser?._id;
 
           await logAttendance(cleanData);
+          successCount++;
         } catch (err) {
-          // Check if it's a 400-level error (Client error, like duplicate or out of bounds)
-          const statusCode = err.response?.status;
-          const backendMessage = err.response?.data?.message || "";
-
-          // If the server explicitly rejected it (Duplicate, Wrong Semester, etc.), TRASH IT.
-          if (statusCode === 400 || statusCode === 403 || backendMessage.includes("already recorded")) {
-             console.log(`Discarding invalid/duplicate scan: ${scan.unitCode}`);
-             // Do nothing, meaning it WON'T be added to failedScans
+          const msg = err.response?.data?.message || "";
+          // If it's a duplicate or already recorded, count it as a "hidden success" (trash it)
+          if (msg.includes("already recorded") || err.response?.status === 400) {
+            successCount++; 
           } else {
-             // Only keep it if it's a real network error (500 or timeout)
-             failedScans.push(scan);
+            failedScans.push(scan);
           }
         }
       }
 
+      // FINAL NOTIFICATION LOGIC
       if (failedScans.length === 0) {
         localStorage.removeItem('pending_scans');
         setPendingScans([]);
-        showToast("All offline records synced successfully!", "success");
-        // SURGICAL FIX: Automatically refresh the data without a full page reload
-        calculateAttendance(); 
+        
+        if (courseMismatch) {
+          showToast("Sync complete, but some units were skipped (Wrong Course).", "error");
+        } else {
+          showToast(`Successfully synced ${successCount} records!`, "success");
+        }
+        
+        // Refresh the dashboard stats immediately
+        calculateAttendance();
       } else {
         localStorage.setItem('pending_scans', JSON.stringify(failedScans));
         setPendingScans(failedScans);
-        showToast("Some records failed to sync. Ensure stable connection.", "error");
+        showToast("Sync partially failed. Check connection.", "error");
       }
     } catch (globalErr) {
-      showToast("Sync encountered a critical error.", "error");
+      console.error(globalErr);
+      showToast("Sync encountered a processing error.", "error");
     } finally {
       setIsSyncing(false);
-    }};
+    }
+  };
 
   const mainCardStyles = "bg-white/65 backdrop-blur-xl rounded-[28px] border border-white/40 shadow-lg p-5";
   const upcomingCardStyles = "bg-white/30 border border-white/40 p-3 rounded-[20px] flex items-center gap-3";
@@ -253,31 +274,31 @@ const Dashboard = () => {
       <div className="mb-6">
         <h3 className="text-slate-900 font-black text-sm mb-3 tracking-tight ml-1">My Progress</h3>
         
-        {/* The Carousel Container */}
         <div className="flex overflow-x-auto gap-4 pb-2 snap-x snap-mandatory hide-scrollbar -mx-5 px-5">
           {unitStats.map((stat, idx) => {
-            const unitPercent = stat.totalSessions > 0 
-              ? Math.round((stat.attended / stat.totalSessions) * 100) 
+            // --- AREA B: TRUTHFUL LABELS ---
+            const sessionsCount = Math.max(stat.totalSessions || 0, stat.attended || 0);
+            const unitPercent = sessionsCount > 0 
+              ? Math.min(100, Math.round((stat.attended / sessionsCount) * 100)) 
               : 0;
               
             return (
-              // Individual Card (Fixed width, snaps into place)
               <div key={idx} className="bg-white/40 backdrop-blur-md border border-white/50 p-4 rounded-[24px] flex flex-col gap-2 shadow-sm min-w-[240px] snap-center shrink-0">
+                {/* ... keep headers same ... */}
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-bold text-slate-800 text-sm truncate pr-2">{stat.unitName}</span>
                   <span className="text-xs font-black text-indigo-700">{unitPercent}%</span>
                 </div>
                 
-                {/* Progress Bar Track */}
                 <div className="w-full h-2 bg-indigo-900/10 rounded-full overflow-hidden">
-                  {/* Progress Bar Fill */}
                   <div 
                     className={`h-full rounded-full transition-all duration-1000 ${unitPercent < 50 ? 'bg-rose-500' : unitPercent < 75 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                     style={{ width: `${unitPercent}%` }}
                   />
                 </div>
+                {/* TRUTHFUL LABEL: Shows '5 / 5' instead of '5 / 4' */}
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                  Attended: {stat.attended} / {stat.totalSessions} Classes
+                  Attended: {stat.attended} / {sessionsCount} Classes
                 </p>
               </div>
             );

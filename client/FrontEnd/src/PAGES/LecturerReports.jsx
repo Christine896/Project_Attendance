@@ -45,6 +45,7 @@ const LecturerReports = () => {
   }, []);
 
   // 2. REAL-TIME ATTENDANCE POLLING
+  // 2. REAL-TIME ATTENDANCE POLLING
   useEffect(() => {
     let pollInterval;
 
@@ -52,6 +53,8 @@ const LecturerReports = () => {
       try {
         const activeSessionString = localStorage.getItem('activeSession');
         const lastSessionString = localStorage.getItem('lastSession');
+        
+        // AREA C: Look for the active session OR the one that just ended
         let targetSession = activeSessionString ? JSON.parse(activeSessionString) : (lastSessionString ? JSON.parse(lastSessionString) : null);
 
         if (!targetSession) {
@@ -73,7 +76,8 @@ const LecturerReports = () => {
         }
         setIsLoading(false);
 
-        if (!activeSessionString && pollInterval) clearInterval(pollInterval);
+        // SURGICAL REMOVAL: I have removed the 'clearInterval' line that 
+        // used to be here. This keeps the polling alive for late syncers.
       } catch (err) {
         console.error("Attendance polling failed:", err);
         setIsLoading(false);
@@ -145,10 +149,11 @@ const LecturerReports = () => {
     };
 
     try {
-        // 1. SURGICAL FIX: Use API.post to bypass the bouncer
+        // 1. SURGICAL FIX: Removed the duplicate raw fetch call
+        // 2. This API.post handles the security token automatically
         await API.post(`/api/auth/lecturer/attendance/toggle`, payload);
 
-        // 2. Refresh the list using API.get
+        // 3. Refresh the list using API.get to show the change immediately
         const code = targetSession.unit.unitCode || targetSession.unit.code;
         const sessionId = targetSession.sessionId;
         const response = await API.get(`/api/auth/lecturer/attendance/${code}/${sessionId}`);
