@@ -353,14 +353,14 @@ const LecturerDashboard = () => {
               <div className="w-full lg:w-[380px] flex flex-col gap-5 shrink-0">
                 
                 {/* --- NEW: UNIT INFO BANNER --- */}
-                  <div className="bg-blue-600/20 border border-blue-500/30 rounded-[2rem] p-6 flex flex-col items-center justify-center backdrop-blur-xl text-center shadow-[0_0_30px_rgba(37,99,235,0.1)]">
-                    <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-white drop-shadow-md leading-tight">
-                      {selectedUnit?.unitName || selectedUnit?.name}
-                    </h2>
-                    <p className="text-blue-400 font-mono text-sm font-bold mt-2 tracking-[0.2em]">
-                      {selectedUnit?.unitCode || selectedUnit?.code}
-                    </p>
-                  </div>
+                  <div className="border border-white/10 bg-white/5 rounded-[2rem] p-6 flex flex-col items-center justify-center backdrop-blur-md text-center">
+                  <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-white drop-shadow-md leading-tight">
+                    {selectedUnit?.unitName || selectedUnit?.name}
+                  </h2>
+                  <p className="text-blue-400 font-mono text-sm font-bold mt-2 tracking-[0.2em]">
+                    {selectedUnit?.unitCode || selectedUnit?.code}
+                  </p>
+                </div>
 
                 {/* 1. TIMER */}
                 <div className={`border rounded-[2rem] p-8 flex flex-col items-center justify-center backdrop-blur-md transition-all ${timeLeft < 60 ? 'border-rose-500/50 bg-rose-500/10 shadow-[0_0_30px_rgba(244,63,94,0.2)]' : 'border-white/10 bg-white/5'}`}>
