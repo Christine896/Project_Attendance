@@ -348,11 +348,17 @@ router.get('/history/:studentId', verifyToken, async (req, res) => {
         const masterSessions = await ClassSession.find({ unitCode: { $in: courseUnits.map(u => u.code) } }).lean();
 
         let fullHistory = [...presentRecords];
+        
+        // SURGICAL FIX: Use a Set to prevent double "Absent" records
+        const trackedSessions = new Set(presentSessionIds);
+
         masterSessions.forEach((session) => {
-            if (!presentSessionIds.includes(session.sessionId)) {
+            if (!trackedSessions.has(session.sessionId)) {
                 fullHistory.push({ _id: `absent_${session.sessionId}`, student: student._id, unitCode: session.unitCode, unitName: session.unitName, sessionId: session.sessionId, date: session.date, status: 'Absent' });
+                trackedSessions.add(session.sessionId); // Mark as tracked so it never duplicates
             }
         });
+        
         fullHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
         res.status(200).json(fullHistory);
     } catch (error) { res.status(500).json({ message: "History error" }); }
@@ -374,7 +380,7 @@ router.get('/stats/:studentId', verifyToken, async (req, res) => {
                 student: student._id, 
                 unitCode: unit.code 
             }).sort({ date: -1 });
-
+ 
             // STRICT 75% RULE
             if (actualTotalSessions >= 3) {
                 if (percent < 75) {

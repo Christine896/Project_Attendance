@@ -139,7 +139,9 @@ const Scanner = () => {
 
           // 1. Check Geofence
           if (distance > 150) {
-            throw new Error(`Too Far! You are ${Math.round(distance)}m away.`);
+            const geoError = new Error(`Too Far! You are ${Math.round(distance)}m away.`);
+            geoError.isGeofence = true; // SURGICAL FIX: Flag this as a security rejection
+            throw geoError;
           }
 
           // 2. Try to send to the server
@@ -157,6 +159,15 @@ const Scanner = () => {
           setIsProcessing(false);
 
         } catch (e) {
+          // SURGICAL FIX: Intercept Geofence and 403 errors so they DO NOT save offline
+          if (e.isGeofence || (e.response && e.response.status === 403)) {
+             setErrorMessage(e.message || e.response?.data?.message);
+             setScanStatus("error");
+             setStopStream(true);
+             setIsProcessing(false);
+             return; // Stop execution here completely
+          }
+
           // 3. OFFLINE FALLBACK
           if (!navigator.onLine || e.message === "Timeout" || !e.response) {
             const pending = JSON.parse(localStorage.getItem('pending_scans') || '[]');
