@@ -371,7 +371,7 @@ const Scanner = () => {
       <div className="pb-8 mt-auto flex flex-col items-center gap-1.5 opacity-40 relative z-20">
         <div className="flex items-center gap-2">
           <ShieldCheck size={12} className="text-indigo-950" />
-          <span className="text-indigo-950 text-[9px] font-black uppercase tracking-[0.3em]">GPS Geofence Active</span>
+          <span className="text-indigo-950 text-[9px] font-black uppercase tracking-[0.3em]">Geofencing Active</span>
         </div>
       </div>
 

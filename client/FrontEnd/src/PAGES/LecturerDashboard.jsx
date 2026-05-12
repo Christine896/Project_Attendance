@@ -178,7 +178,7 @@ const LecturerDashboard = () => {
         
         localStorage.setItem('activeSession', JSON.stringify({ 
           unit: selectedUnit, 
-          expiry, 
+          expiry,   
           count: 0, 
           loc: coords,
           sessionId: newSessionId  
