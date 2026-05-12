@@ -158,21 +158,12 @@ const LecturerDashboard = () => {
         };
 
        try {
+            // SURGICAL FIX: Removed the duplicate "MASTER ANCHOR" call. 
+            // We only need to send this payload to the backend ONCE.
             await API.post(`/api/auth/lecturer/session`, {
                 unitCode: selectedUnit?.unitCode || selectedUnit?.code,
                 unitName: selectedUnit?.unitName || selectedUnit?.name,
                 sessionId: newSessionId
-            });
-            
-            // --- NEW: SEND MASTER ANCHOR TO BACKEND ---
-            await API.post(`/api/auth/lecturer/session`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    unitCode: selectedUnit?.unitCode || selectedUnit?.code,
-                    unitName: selectedUnit?.unitName || selectedUnit?.name,
-                    sessionId: newSessionId
-                })
             });
 
         } catch (err) {
