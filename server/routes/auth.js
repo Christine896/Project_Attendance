@@ -246,10 +246,10 @@ router.post('/scan', verifyToken, async (req, res) => {
 
         // 🚨 SECURITY CHECK 1 & 2: Correct Course and Semester?
         if (student.course !== unit.course) {
-            return res.status(403).json({ message: `Denied: This unit is for ${unit.course} students.` });
+            return res.status(403).json({ message: `Denied:\nThis unit is for ${unit.course} students.` });
         }
         if (student.semester !== unit.semester) {
-            return res.status(403).json({ message: `Denied: This unit is for ${unit.semester} students.` });
+            return res.status(403).json({ message: `Denied:\nThis unit is for ${unit.semester} students.` });
         }
 
         // 🚨 SECURITY CHECK 3: Geofencing (SMART FIX FOR OFFLINE SYNC)

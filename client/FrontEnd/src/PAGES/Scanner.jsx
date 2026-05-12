@@ -140,7 +140,7 @@ const Scanner = () => {
           // 1. Check Geofence
           if (isNaN(distance) || distance > 150) {
             const distStr = isNaN(distance) ? "Unknown" : Math.round(distance);
-            const geoError = new Error(`Too Far! You are ${distStr}m away.`);
+            const geoError = new Error(`Too Far! You are ${distStr} m away.`);
             geoError.isGeofence = true; 
             throw geoError;
           }
@@ -166,7 +166,7 @@ const Scanner = () => {
             (e.message && e.message.includes("Too Far")) || 
             (e.response && (e.response.status === 403 || e.response.status === 400))
           ) {
-             setErrorMessage(e.message || e.response?.data?.message);
+             setErrorMessage(e.response?.data?.message || e.message);
              setScanStatus("error");
              setStopStream(true);
              setIsProcessing(false);
