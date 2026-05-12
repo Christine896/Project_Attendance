@@ -138,9 +138,10 @@ const Scanner = () => {
           distance = getDistance(lLat, lLng, sLat, sLng);
 
           // 1. Check Geofence
-          if (distance > 150) {
-            const geoError = new Error(`Too Far! You are ${Math.round(distance)}m away.`);
-            geoError.isGeofence = true; // SURGICAL FIX: Flag this as a security rejection
+          if (isNaN(distance) || distance > 150) {
+            const distStr = isNaN(distance) ? "Unknown" : Math.round(distance);
+            const geoError = new Error(`Too Far! You are ${distStr}m away.`);
+            geoError.isGeofence = true; 
             throw geoError;
           }
 
@@ -159,13 +160,17 @@ const Scanner = () => {
           setIsProcessing(false);
 
         } catch (e) {
-          // SURGICAL FIX: Intercept Geofence and 403 errors so they DO NOT save offline
-          if (e.isGeofence || (e.response && e.response.status === 403)) {
+          // SURGICAL FIX: Bulletproof string match to absolutely prevent offline saving of frauds
+          if (
+            e.isGeofence || 
+            (e.message && e.message.includes("Too Far")) || 
+            (e.response && (e.response.status === 403 || e.response.status === 400))
+          ) {
              setErrorMessage(e.message || e.response?.data?.message);
              setScanStatus("error");
              setStopStream(true);
              setIsProcessing(false);
-             return; // Stop execution here completely
+             return; // STOP EXECUTION! Do not save offline.
           }
 
           // 3. OFFLINE FALLBACK
