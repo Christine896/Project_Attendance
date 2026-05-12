@@ -88,6 +88,18 @@ const Scanner = () => {
         const rawText = result.text.trim();
         data = JSON.parse(rawText);
         
+        // --- SURGICAL FIX: REPLAY ATTACK (SCREENSHOT) PREVENTION ---
+        // Checks if the QR code is older than 13 seconds (13000 ms)
+        if (data.nonce) {
+          const timeElapsed = Date.now() - data.nonce;
+          if (timeElapsed > 13000) { 
+            setErrorMessage("Please scan a live code.");
+            setScanStatus("error");
+            setStopStream(true);
+            return;
+          }
+        }
+        
         // SURGICAL FIX: The Offline Course Bouncer
         // Compares scanned course to the student's course in memory
         if (data.course && data.course !== user.course) {
@@ -382,6 +394,7 @@ const Scanner = () => {
             20% { opacity: 1; }
             80% { opacity: 1; }
             100% { top: 100%; opacity: 0; }
+            
           }
           .animate-scan-line {
             animation: scan-line 3.5s ease-in-out infinite;
