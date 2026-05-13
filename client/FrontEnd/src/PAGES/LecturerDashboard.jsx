@@ -3,8 +3,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import API from '../services/api'; 
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, LogOut, RotateCcw, Clock, ShieldCheck, 
-  Loader2, BookOpen, Hash, QrCode, History as HistoryIcon 
+  Users, LogOut, RotateCcw, Clock, ShieldCheck, Loader2, BookOpen, Hash, QrCode, 
+  History as HistoryIcon, HelpCircle, XCircle, MapPin, Database, ToggleRight, Download
 } from 'lucide-react';
 import { getLecturerUnits, incrementUnitSession } from '../services/api'; 
 
@@ -23,7 +23,7 @@ const LecturerDashboard = () => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [totalExpected, setTotalExpected] = useState(0);
-
+  const [showHelp, setShowHelp] = useState(false);
   const timerRef = useRef(null);
 
   // --- NEW FIX: RESTORE ACTIVE SESSION ON LOAD ---
@@ -246,6 +246,11 @@ const LecturerDashboard = () => {
           <button onClick={() => navigate('/lecturer-history')} className="flex items-center gap-4 px-5 py-4 bg-transparent rounded-2xl text-sm font-bold uppercase text-white/50 hover:text-white hover:bg-white/5 transition-all text-left">
             <HistoryIcon size={20} /> View History
           </button>
+
+          {/* NEW LECTURER HELP BUTTON (DESKTOP) */}
+          <button onClick={() => setShowHelp(true)} className="flex items-center gap-4 px-5 py-4 bg-transparent rounded-2xl text-sm font-bold uppercase text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10 transition-all text-left mt-2">
+            <HelpCircle size={20} /> User Guide
+          </button>
         </div>
 
         <button onClick={() => { localStorage.removeItem('user'); navigate('/login'); }} className="flex items-center gap-4 px-5 py-4 mt-auto bg-rose-500/10 text-rose-400 rounded-2xl hover:bg-rose-500/20 transition-all text-sm font-bold uppercase text-left">
@@ -253,11 +258,15 @@ const LecturerDashboard = () => {
         </button>
       </div>
 
-      {/* MOBILE TOP BAR (Only visible on phones) */}
+      {/* MOBILE TOP BAR */}
       <div className="md:hidden relative z-20 flex justify-between items-center p-6 bg-white/5 backdrop-blur-xl border-b border-white/10">
         <ShieldCheck className="text-blue-400" size={28} />
         <div className="flex gap-2">
            <button onClick={() => navigate('/class-list')} className="p-2 bg-white/10 rounded-lg"><Users size={20}/></button>
+           
+           {/* NEW LECTURER HELP BUTTON (MOBILE) */}
+           <button onClick={() => setShowHelp(true)} className="p-2 bg-blue-500/10 text-blue-400 rounded-lg"><HelpCircle size={20}/></button>
+           
            <button onClick={() => { localStorage.removeItem('user'); navigate('/login'); }} className="p-2 bg-rose-500/10 text-rose-400 rounded-lg"><LogOut size={20}/></button>
         </div>
       </div>
@@ -393,11 +402,60 @@ const LecturerDashboard = () => {
                 </button>
                 
               </div>
-
             </div>
           )}
         </div>
       </div>
+
+      {/* LECTURER HELP MODAL - MOVED HERE */}
+      {showHelp && (
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-center justify-center p-5 animate-in fade-in duration-300">
+          {/* Changed from max-w-md to max-w-lg for a wider, desktop-optimized view */}
+          <div className="bg-[#111827]/90 backdrop-blur-2xl border border-white/10 rounded-[28px] shadow-2xl p-7 w-full max-w-lg text-white">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-black text-white">User Guide</h2>
+              <button onClick={() => setShowHelp(false)} className="p-1.5 bg-white/10 rounded-full text-white/60 hover:text-white hover:bg-rose-500/80 transition-all">
+                <XCircle size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4 font-medium">
+              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2"><MapPin size={18}/> Session Setup</h4>
+                <ul className="text-xs text-white/70 space-y-1.5 list-disc list-inside">
+                  <li>Type or select the Unit Name from the dashboard.</li>
+                  <li>Click <strong>Start Session</strong> to lock the GPS anchor to your hall.</li>
+                </ul>
+              </div>
+              
+              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2"><Clock size={18}/> Live Monitoring</h4>
+                <ul className="text-xs text-white/70 space-y-1.5 list-disc list-inside">
+                  <li>The displayed QR code rotates automatically every 10 seconds.</li>
+                  <li>Navigate to the <strong>Attendance</strong> tab in the menu to view the live roster.</li>
+                </ul>
+              </div>
+              
+              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2"><ToggleRight size={18}/> Manual Overrides</h4>
+                <ul className="text-xs text-white/70 space-y-1.5 list-disc list-inside">
+                  <li>Navigate to the <strong>Attendance</strong> tab in the side menu.</li>
+                  <li>Click the toggle icon on the <strong>far right</strong> of a student's name to mark them present/absent.</li>
+                </ul>
+              </div>
+
+              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2"><Download size={18}/> Exporting Reports</h4>
+                <ul className="text-xs text-white/70 space-y-1.5 list-disc list-inside">
+                  <li><strong>Current Class:</strong> Download directly from the <strong>Attendance</strong> tab.</li>
+                  <li><strong>Past Classes:</strong> Search for a unit and export it from the <strong>View History</strong> tab.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

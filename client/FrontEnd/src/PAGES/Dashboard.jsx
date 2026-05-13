@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStudentStats, getAllUnits, logAttendance, getNotifications } from '../services/api';
 import { 
-  Bell, Home, History, User, Scan, MapPin, Database, Code, CircleUser, CalendarX, Loader2, ShieldCheck, XCircle 
+  Bell, Home, History, HelpCircle, User, Scan, MapPin, Database, Code, CircleUser, CalendarX, Loader2, ShieldCheck, XCircle 
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -15,7 +15,7 @@ const Dashboard = () => {
   const [unitStats, setUnitStats] = useState([]);
   const [pendingScans, setPendingScans] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
-  
+  const [showHelp, setShowHelp] = useState(false);
   const [toast, setToast] = useState(null); 
 
   const showToast = (message, type = 'error') => {
@@ -195,6 +195,14 @@ const Dashboard = () => {
             Welcome, <span className="font-black text-indigo-800">{userName}</span>
           </h1>
         </div>
+        
+        {/* NEW STUDENT HELP BUTTON */}
+        <button 
+          onClick={() => setShowHelp(true)} 
+          className="p-2 bg-white/40 backdrop-blur-md border border-white/50 rounded-full text-indigo-900 shadow-sm active:scale-95 transition-all"
+        >
+          <HelpCircle size={22} strokeWidth={2.5} />
+        </button>
       </div>
 
       {/* GLASSMORPHIC TOAST NOTIFICATION */}
@@ -224,7 +232,7 @@ const Dashboard = () => {
               </p>
               <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
                 {pendingScans.length} pending
-              </p>
+              </p> 
             </div>
           </div>
           <button 
@@ -394,6 +402,46 @@ const Dashboard = () => {
           </button>
         </div>
       </div>
+
+{/* STUDENT HELP MODAL */}
+      {showHelp && (
+        <div className="fixed inset-0 z-[200] bg-indigo-950/40 backdrop-blur-md flex items-center justify-center p-5 animate-in fade-in duration-300">
+          <div className="bg-white/85 backdrop-blur-2xl border border-white/50 rounded-[28px] shadow-2xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-black text-slate-900">User Guide</h2>
+              <button onClick={() => setShowHelp(false)} className="p-1.5 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200 hover:text-rose-500 transition-all">
+                <XCircle size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4 font-medium">
+              <div className="bg-white/50 p-4 rounded-xl border border-white/60 shadow-sm">
+                <h4 className="font-bold text-indigo-800 mb-2 flex items-center gap-2"><MapPin size={18}/> Permissions</h4>
+                <ul className="text-xs text-slate-700 space-y-1.5 list-disc list-inside">
+                  <li>Allow Location (GPS) access when prompted.</li>
+                  <li>Grant Camera permissions to enable the scanner.</li>
+                </ul>
+              </div>
+              
+              <div className="bg-white/50 p-4 rounded-xl border border-white/60 shadow-sm">
+                <h4 className="font-bold text-indigo-800 mb-2 flex items-center gap-2"><Scan size={18}/> Scanning</h4>
+                <ul className="text-xs text-slate-700 space-y-1.5 list-disc list-inside">
+                  <li>Tap the <strong>Scan</strong> icon in the bottom navigation bar.</li>
+                  <li>Center the lecturer's QR code within the camera frame.</li>
+                </ul>
+              </div>
+              
+              <div className="bg-white/50 p-4 rounded-xl border border-white/60 shadow-sm">
+                <h4 className="font-bold text-indigo-800 mb-2 flex items-center gap-2"><Database size={18}/> Offline Mode</h4>
+                <ul className="text-xs text-slate-700 space-y-1.5 list-disc list-inside">
+                  <li>If offline, scan normally; the system will save it locally.</li>
+                  <li>Tap the amber <strong>Sync Pending</strong> banner when the network returns.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>
         {`
