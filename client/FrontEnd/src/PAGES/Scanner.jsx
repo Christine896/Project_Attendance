@@ -107,7 +107,7 @@ const Scanner = () => {
            setScanStatus("error");
            setStopStream(true);
            return;
-        }
+        } 
 
         if (!(data.code || data.unitCode) || !data.sessionId) {
           throw new Error("Invalid Format");
