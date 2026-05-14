@@ -123,12 +123,21 @@ const Register = () => {
       validationErrors.email = "You must use your JKUAT student email";
     }
 
-    // 3. Student ID Format
+    // 3. Student ID Format & Future Year Check
     const regNoPattern = /^[A-Z]{3}\d{3}-\d{4}\/\d{4}$/;
     if (!formData.regNo.trim()) {
       validationErrors.regNo = "Student ID is required";
     } else if (!regNoPattern.test(formData.regNo)) {
       validationErrors.regNo = "Invalid Format: Use SCT211-0001/2022";
+    } else {
+      // Extract the year and check against the current dynamic year
+      const yearStr = formData.regNo.split('/')[1];
+      const regYear = parseInt(yearStr, 10);
+      const currentYear = new Date().getFullYear(); // Automatically gets 2026
+      
+      if (regYear > currentYear) {
+        validationErrors.regNo = `Year cannot be in the future (max ${currentYear})`;
+      }
     }
 
     // 4. Password Security
