@@ -77,7 +77,7 @@ const LecturerDashboard = () => {
       fetchTotal();
     }
   }, [showQR, selectedUnit]);
-
+//................................................................DYNAMIC QR CODE 
   useEffect(() => {
     let pollInterval;
     let nonceInterval; // NEW: Dedicated QR updater

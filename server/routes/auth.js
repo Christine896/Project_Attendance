@@ -123,9 +123,7 @@ router.post('/register', async (req, res) => {
 // ==========================================
 // 2. OTP VERIFICATION & LOGIN
 // ==========================================
-// ==========================================
-// 2. OTP VERIFICATION & LOGIN (Surgical Fix)
-// ==========================================
+
 router.post('/verify-otp', async (req, res) => {
     try {
         const { regNo, otp } = req.body;
@@ -198,7 +196,7 @@ router.post('/login', async (req, res) => {
         if (!isMatch) {
             return res.status(400).json({ message: "Invalid Password." });
         }
-
+//....................................................................................JWT SESSION GENERATION
         // 4. Generate Security Token (JWT)
         const token = jwt.sign(
             { id: user._id, role: user.role }, 
@@ -253,10 +251,9 @@ router.post('/scan', verifyToken, async (req, res) => {
         }
 
         // 🚨 SECURITY CHECK 3: Geofencing (SMART FIX FOR OFFLINE SYNC)
-        // 🚨 SECURITY CHECK 3: Geofencing (SMART FIX FOR OFFLINE SYNC)
         let finalDistance = 0;
 
-        // SURGICAL FIX: If the frontend sends an offline preCalculatedDistance, TRUST IT.
+        // If the frontend sends an offline preCalculatedDistance, TRUST IT.
         // Otherwise, manually calculate it for live online scans.
         if (preCalculatedDistance !== undefined) {
             finalDistance = Number(preCalculatedDistance); 
@@ -415,7 +412,7 @@ router.get('/stats/:studentId', verifyToken, async (req, res) => {
 });
 
 // ==========================================
-// 6. NOTIFICATION SYSTEM
+//  NOTIFICATION SYSTEM
 // ==========================================
 router.get('/notifications/:studentId', verifyToken, async (req, res) => {
     try {
@@ -431,9 +428,7 @@ router.put('/notifications/mark-read/:studentId', verifyToken, async (req, res) 
     } catch (error) { res.status(500).json({ message: "Update failed" }); }
 });
 
-// ==========================================
-// STEP 16: FORGOT PASSWORD (Generate Link)
-// ==========================================
+
 // ==========================================
 // STEP 16: FORGOT PASSWORD (Generate Link)
 // ==========================================

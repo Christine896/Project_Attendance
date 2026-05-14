@@ -5,6 +5,7 @@ import { ChevronLeft, ShieldCheck, Loader2, XCircle, Database } from 'lucide-rea
 import SuccessOverlay from '../components/SuccessOverlay';
 import { logAttendance } from '../services/api'; 
 
+//.........................................................................HAVERSINE FORMULA
 const getDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3; 
   const dLat = (lat2 - lat1) * (Math.PI / 180);

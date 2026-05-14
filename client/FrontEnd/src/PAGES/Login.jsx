@@ -24,7 +24,7 @@ const Login = () => {
     setIsLoading(true);
     let validationErrors = {};
 
-    // 1. Validation Checks
+  
     // 1. Validation Checks
     const regNoPattern = /^[A-Z]{3}\d{3}-\d{4}\/\d{4}$/;
     if (!regNumber.trim()) {

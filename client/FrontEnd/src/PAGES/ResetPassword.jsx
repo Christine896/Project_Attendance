@@ -20,11 +20,12 @@ const ResetPassword = () => {
     setErrors({});
     let validationErrors = {};
 
+    const passwordPattern = /^(?=.*[0-9])(?=.*[!@#$%^&*_])[a-zA-Z0-9!@#$%^&*_]{6,}$/;
+    if (!passwordPattern.test(password)) {
+        validationErrors.password = "Need 6+ chars, 1 number, and 1 symbol.";
+    }
     if (password !== confirmPassword) {
         validationErrors.confirmPassword = "Passwords do not match.";
-    }
-    if (password.length < 6) {
-        validationErrors.password = "Password must be at least 6 characters.";
     }
 
     if (Object.keys(validationErrors).length > 0) {

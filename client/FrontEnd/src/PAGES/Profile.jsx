@@ -66,17 +66,22 @@ const Profile = () => {
     setIsUpdating(true);
     setPasswordError("");
 
+    // NEW STRICT VALIDATION
+    const passwordPattern = /^(?=.*[0-9])(?=.*[!@#$%^&*_])[a-zA-Z0-9!@#$%^&*_]{6,}$/;
+    if (!passwordPattern.test(newPassword)) {
+        setPasswordError("New password needs 6+ characters, 1 number, and 1 symbol.");
+        setIsUpdating(false);
+        return;
+    }
+
     try {
       const savedUser = JSON.parse(localStorage.getItem('user'));
       
-      const res = await API.post(`/api/auth/change-password`, { 
+      await API.post(`/api/auth/change-password`, { 
         studentId: savedUser._id, 
         currentPassword, 
         newPassword 
       });
-
-      const data = res.data;
-      if (!res.ok) throw new Error(data.message);
 
       setModalSuccess(true);
       
@@ -89,7 +94,9 @@ const Profile = () => {
       }, 2000);
 
     } catch (err) {
-      setPasswordError(err.message || "Failed to update password.");
+      // SURGICAL FIX: Extract the actual backend error message from the Axios response
+      const backendMessage = err.response?.data?.message;
+      setPasswordError(backendMessage || "Failed to update password.");
     } finally {
       setIsUpdating(false);
     }
@@ -192,8 +199,8 @@ const Profile = () => {
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Lock size={32} />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Password Updated</h3>
-            <p className="text-sm text-slate-500">Your security is now up to date.</p>
+            <h3 className="text-lg font-black text-emerald-500">Password Successfully Reset</h3>
+            <p className="text-sm text-emerald-600/80 font-medium mt-1">Your security is now up to date.</p>
           </div>
         ) : (
           <form onSubmit={handlePasswordSubmit} className="space-y-5">
