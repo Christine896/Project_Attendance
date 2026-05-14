@@ -95,7 +95,7 @@ router.post('/register', async (req, res) => {
         // 4. Send Email via Brevo REST API
         try {
             await axios.post('https://api.brevo.com/v3/smtp/email', {
-                sender: { name: "JKUAT Attendance", email: process.env.SENDER_EMAIL },
+                sender: { name: "Proxi Attendance", email: process.env.SENDER_EMAIL },
                 to: [{ email: email }],
                 subject: "Verify your JKUAT Student Account",
                 htmlContent: `
@@ -459,7 +459,7 @@ router.post('/forgot-password', async (req, res) => {
         const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
 
         await axios.post('https://api.brevo.com/v3/smtp/email', {
-            sender: { name: "JKUAT Security", email: process.env.SENDER_EMAIL },
+            sender: { name: "Proxi Attendance", email: process.env.SENDER_EMAIL },
             to: [{ email: student.email }], // Uses the specific email attached to this RegNo
             subject: "Password Reset Request",
             htmlContent: `
@@ -548,7 +548,7 @@ router.post('/change-password', verifyToken, async (req, res) => {
         // 3. Send Security Alert via Brevo REST API
         try {
             await axios.post('https://api.brevo.com/v3/smtp/email', {
-                sender: { name: "JKUAT Security", email: process.env.SENDER_EMAIL },
+                sender: { name: "Proxi Attendance", email: process.env.SENDER_EMAIL },
                 to: [{ email: student.email }],
                 subject: "Security Alert: Password Changed",
                 htmlContent: `
